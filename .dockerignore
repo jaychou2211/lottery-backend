@@ -1,0 +1,39 @@
+# Git
+.git
+.gitignore
+
+# Dependencies
+node_modules
+
+# Build output
+dist
+
+# IDE
+.vscode
+.idea
+
+# Environment
+.env*
+!.env.example
+
+# Logs
+logs
+*.log
+
+# Database
+database
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test
+coverage
+
+# Documentation
+*.md
+!README.md
+
+# Development artifacts
+.study
+.reference
