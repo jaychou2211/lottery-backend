@@ -7,6 +7,7 @@ import { LoggerModule } from './common/logger';
 import { databaseConfig } from './config/database.config';
 import { loggerConfig } from './config/logger.config';
 import { DatabaseModule } from './database';
+import { DemoModule } from './demo';
 
 @Module({
 	imports: [
@@ -17,6 +18,7 @@ import { DatabaseModule } from './database';
 		}),
 		LoggerModule,
 		DatabaseModule,
+		DemoModule,
 	],
 	controllers: [AppController],
 	providers: [AppService],
