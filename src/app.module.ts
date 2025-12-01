@@ -8,6 +8,7 @@ import { databaseConfig } from './config/database.config';
 import { loggerConfig } from './config/logger.config';
 import { DatabaseModule } from './database';
 import { DemoModule } from './demo';
+import { EmployeeModule } from './employee';
 
 @Module({
 	imports: [
@@ -19,6 +20,7 @@ import { DemoModule } from './demo';
 		LoggerModule,
 		DatabaseModule,
 		DemoModule,
+		EmployeeModule,
 	],
 	controllers: [AppController],
 	providers: [AppService],

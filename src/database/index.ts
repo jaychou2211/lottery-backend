@@ -6,4 +6,8 @@ export type {
 	SmokeTest,
 	SmokeTestTable,
 	SmokeTestUpdate,
+	EmployeeTable,
+	EmployeeRow,
+	NewEmployee,
+	EmployeeUpdate,
 } from './database.types';
