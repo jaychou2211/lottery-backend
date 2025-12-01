@@ -43,9 +43,26 @@ export type NewEmployee = Insertable<EmployeeTable>;
 export type EmployeeUpdate = Updateable<EmployeeTable>;
 
 // =====================================================
+// Prize Template Table (prize_template)
+// =====================================================
+export interface PrizeTemplateTable {
+	id: Generated<number>;
+	name: string;
+	prize_level: string;
+	image_url: string;
+	created_at: ColumnType<string, string | undefined, never>;
+	updated_at: ColumnType<string, string | undefined, string | undefined>;
+}
+
+export type PrizeTemplateRow = Selectable<PrizeTemplateTable>;
+export type NewPrizeTemplate = Insertable<PrizeTemplateTable>;
+export type PrizeTemplateUpdate = Updateable<PrizeTemplateTable>;
+
+// =====================================================
 // Database Schema
 // =====================================================
 export interface Database {
 	_smoke_test: SmokeTestTable;
 	employee: EmployeeTable;
+	prize_template: PrizeTemplateTable;
 }

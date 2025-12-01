@@ -10,4 +10,8 @@ export type {
 	EmployeeRow,
 	NewEmployee,
 	EmployeeUpdate,
+	PrizeTemplateTable,
+	PrizeTemplateRow,
+	NewPrizeTemplate,
+	PrizeTemplateUpdate,
 } from './database.types';
