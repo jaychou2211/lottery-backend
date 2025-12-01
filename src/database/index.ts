@@ -6,4 +6,8 @@ export type {
 	SmokeTest,
 	SmokeTestTable,
 	SmokeTestUpdate,
+	PrizeTemplateTable,
+	PrizeTemplateRow,
+	NewPrizeTemplate,
+	PrizeTemplateUpdate,
 } from './database.types';

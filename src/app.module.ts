@@ -8,6 +8,7 @@ import { databaseConfig } from './config/database.config';
 import { loggerConfig } from './config/logger.config';
 import { DatabaseModule } from './database';
 import { DemoModule } from './demo';
+import { PrizeModule } from './prize';
 
 @Module({
 	imports: [
@@ -19,6 +20,7 @@ import { DemoModule } from './demo';
 		LoggerModule,
 		DatabaseModule,
 		DemoModule,
+		PrizeModule,
 	],
 	controllers: [AppController],
 	providers: [AppService],
