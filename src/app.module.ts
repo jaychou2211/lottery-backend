@@ -10,6 +10,7 @@ import { DatabaseModule } from './database';
 import { DemoModule } from './demo';
 import { EmployeeModule } from './employee';
 import { PrizeModule } from './prize';
+import { RaffleModule } from './raffle';
 
 @Module({
 	imports: [
@@ -23,6 +24,7 @@ import { PrizeModule } from './prize';
 		DemoModule,
 		EmployeeModule,
 		PrizeModule,
+		RaffleModule,
 	],
 	controllers: [AppController],
 	providers: [AppService],
