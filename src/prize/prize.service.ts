@@ -11,6 +11,14 @@ export class PrizeService {
 		return this.repository.findAll();
 	}
 
+	/**
+	 * Find all active (non-deleted) prize templates.
+	 * Used when creating a new raffle.
+	 */
+	async findAllActive(): Promise<PrizeTemplate[]> {
+		return this.repository.findAllActive();
+	}
+
 	async findById(id: number): Promise<PrizeTemplate> {
 		const prize = await this.repository.findById(id);
 		if (!prize) {
@@ -23,6 +31,8 @@ export class PrizeService {
 		name: string;
 		prizeLevel: string;
 		imageUrl: string;
+		senior: number;
+		junior: number;
 	}): Promise<PrizeTemplate> {
 		return this.repository.create(data);
 	}
@@ -33,6 +43,8 @@ export class PrizeService {
 			name: string;
 			prizeLevel: string;
 			imageUrl: string;
+			senior: number;
+			junior: number;
 		}>,
 	): Promise<PrizeTemplate> {
 		const updated = await this.repository.update(id, data);

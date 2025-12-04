@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsUrl, MaxLength } from 'class-validator';
+import { IsInt, IsNotEmpty, IsUrl, MaxLength, Min } from 'class-validator';
 
 export class CreatePrizeDto {
 	/** Prize name */
@@ -15,4 +15,14 @@ export class CreatePrizeDto {
 	@IsUrl()
 	@MaxLength(500)
 	imageUrl: string;
+
+	/** Number of senior winners */
+	@IsInt()
+	@Min(0)
+	senior: number;
+
+	/** Number of junior winners */
+	@IsInt()
+	@Min(0)
+	junior: number;
 }

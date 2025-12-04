@@ -36,6 +36,7 @@ export interface EmployeeTable {
 	role: string;
 	created_at: ColumnType<string, string | undefined, never>;
 	updated_at: ColumnType<string, string | undefined, string | undefined>;
+	deleted_at: string | null;
 }
 
 export type EmployeeRow = Selectable<EmployeeTable>;
@@ -50,8 +51,13 @@ export interface PrizeTemplateTable {
 	name: string;
 	prize_level: string;
 	image_url: string;
+	/** Number of senior winners */
+	senior: number;
+	/** Number of junior winners */
+	junior: number;
 	created_at: ColumnType<string, string | undefined, never>;
 	updated_at: ColumnType<string, string | undefined, string | undefined>;
+	deleted_at: string | null;
 }
 
 export type PrizeTemplateRow = Selectable<PrizeTemplateTable>;

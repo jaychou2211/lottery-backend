@@ -14,4 +14,8 @@ export interface PrizeTemplate {
 	readonly name: string;
 	readonly prizeLevel: string;
 	readonly imageUrl: string;
+	/** Number of senior winners for this prize */
+	readonly senior: number;
+	/** Number of junior winners for this prize */
+	readonly junior: number;
 }

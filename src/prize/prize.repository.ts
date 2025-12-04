@@ -9,7 +9,11 @@ export class PrizeRepository {
 	constructor(@InjectKysely() private readonly db: KyselyDatabase) {}
 
 	async findAll(): Promise<PrizeTemplate[]> {
-		const rows = await this.db.selectFrom('prize_template').selectAll().execute();
+		const rows = await this.db
+			.selectFrom('prize_template')
+			.selectAll()
+			.where('deleted_at', 'is', null)
+			.execute();
 		return rows.map(this.toDomain);
 	}
 
@@ -18,19 +22,32 @@ export class PrizeRepository {
 			.selectFrom('prize_template')
 			.selectAll()
 			.where('id', '=', id)
+			.where('deleted_at', 'is', null)
 			.executeTakeFirst();
 		return row ? this.toDomain(row) : null;
+	}
+
+	/**
+	 * Find all active (non-deleted) prize templates.
+	 * Used when creating a new raffle.
+	 */
+	async findAllActive(): Promise<PrizeTemplate[]> {
+		return this.findAll();
 	}
 
 	async create(data: {
 		name: string;
 		prizeLevel: string;
 		imageUrl: string;
+		senior: number;
+		junior: number;
 	}): Promise<PrizeTemplate> {
 		const newPrize: NewPrizeTemplate = {
 			name: data.name,
 			prize_level: data.prizeLevel,
 			image_url: data.imageUrl,
+			senior: data.senior,
+			junior: data.junior,
 		};
 
 		const result = await this.db
@@ -52,6 +69,8 @@ export class PrizeRepository {
 			name: string;
 			prizeLevel: string;
 			imageUrl: string;
+			senior: number;
+			junior: number;
 		}>,
 	): Promise<PrizeTemplate | null> {
 		const updateData: PrizeTemplateUpdate = {};
@@ -59,6 +78,8 @@ export class PrizeRepository {
 		if (data.name !== undefined) updateData.name = data.name;
 		if (data.prizeLevel !== undefined) updateData.prize_level = data.prizeLevel;
 		if (data.imageUrl !== undefined) updateData.image_url = data.imageUrl;
+		if (data.senior !== undefined) updateData.senior = data.senior;
+		if (data.junior !== undefined) updateData.junior = data.junior;
 
 		if (Object.keys(updateData).length === 0) {
 			return this.findById(id);
@@ -71,6 +92,7 @@ export class PrizeRepository {
 				updated_at: sql`CURRENT_TIMESTAMP`,
 			})
 			.where('id', '=', id)
+			.where('deleted_at', 'is', null)
 			.executeTakeFirst();
 
 		if (result.numUpdatedRows === 0n) {
@@ -82,10 +104,12 @@ export class PrizeRepository {
 
 	async delete(id: number): Promise<boolean> {
 		const result = await this.db
-			.deleteFrom('prize_template')
+			.updateTable('prize_template')
+			.set({ deleted_at: sql`CURRENT_TIMESTAMP` })
 			.where('id', '=', id)
+			.where('deleted_at', 'is', null)
 			.executeTakeFirst();
-		return result.numDeletedRows > 0n;
+		return result.numUpdatedRows > 0n;
 	}
 
 	private toDomain(row: PrizeTemplateRow): PrizeTemplate {
@@ -94,6 +118,8 @@ export class PrizeRepository {
 			name: row.name,
 			prizeLevel: row.prize_level,
 			imageUrl: row.image_url,
+			senior: row.senior,
+			junior: row.junior,
 		};
 	}
 }

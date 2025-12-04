@@ -10,7 +10,11 @@ export class EmployeeRepository {
 	constructor(@InjectKysely() private readonly db: KyselyDatabase) {}
 
 	async findAll(): Promise<Employee[]> {
-		const rows = await this.db.selectFrom('employee').selectAll().execute();
+		const rows = await this.db
+			.selectFrom('employee')
+			.selectAll()
+			.where('deleted_at', 'is', null)
+			.execute();
 		return rows.map(this.toDomain);
 	}
 
@@ -19,8 +23,28 @@ export class EmployeeRepository {
 			.selectFrom('employee')
 			.selectAll()
 			.where('id', '=', id)
+			.where('deleted_at', 'is', null)
 			.executeTakeFirst();
 		return row ? this.toDomain(row) : null;
+	}
+
+	async findByIds(ids: number[]): Promise<Employee[]> {
+		if (ids.length === 0) return [];
+		const rows = await this.db
+			.selectFrom('employee')
+			.selectAll()
+			.where('id', 'in', ids)
+			.where('deleted_at', 'is', null)
+			.execute();
+		return rows.map(this.toDomain);
+	}
+
+	/**
+	 * Find all active (non-deleted) employees.
+	 * Used when creating a new raffle.
+	 */
+	async findAllActive(): Promise<Employee[]> {
+		return this.findAll();
 	}
 
 	async findByStaffNumber(staffNumber: string): Promise<Employee | null> {
@@ -28,6 +52,7 @@ export class EmployeeRepository {
 			.selectFrom('employee')
 			.selectAll()
 			.where('staff_number', '=', staffNumber)
+			.where('deleted_at', 'is', null)
 			.executeTakeFirst();
 		return row ? this.toDomain(row) : null;
 	}
@@ -96,17 +121,20 @@ export class EmployeeRepository {
 
 	async delete(id: number): Promise<boolean> {
 		const result = await this.db
-			.deleteFrom('employee')
+			.updateTable('employee')
+			.set({ deleted_at: sql`CURRENT_TIMESTAMP` })
 			.where('id', '=', id)
+			.where('deleted_at', 'is', null)
 			.executeTakeFirst();
-		return result.numDeletedRows > 0n;
+		return result.numUpdatedRows > 0n;
 	}
 
 	async existsByStaffNumber(staffNumber: string, excludeId?: number): Promise<boolean> {
 		let query = this.db
 			.selectFrom('employee')
 			.select('id')
-			.where('staff_number', '=', staffNumber);
+			.where('staff_number', '=', staffNumber)
+			.where('deleted_at', 'is', null);
 
 		if (excludeId !== undefined) {
 			query = query.where('id', '!=', excludeId);

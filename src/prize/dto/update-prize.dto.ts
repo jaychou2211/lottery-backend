@@ -1,4 +1,4 @@
-import { IsOptional, IsUrl, MaxLength } from 'class-validator';
+import { IsInt, IsOptional, IsUrl, MaxLength, Min } from 'class-validator';
 
 export class UpdatePrizeDto {
 	/** Prize name */
@@ -16,4 +16,16 @@ export class UpdatePrizeDto {
 	@IsUrl()
 	@MaxLength(500)
 	imageUrl?: string;
+
+	/** Number of senior winners */
+	@IsOptional()
+	@IsInt()
+	@Min(0)
+	senior?: number;
+
+	/** Number of junior winners */
+	@IsOptional()
+	@IsInt()
+	@Min(0)
+	junior?: number;
 }

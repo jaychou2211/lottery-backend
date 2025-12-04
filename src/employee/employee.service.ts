@@ -12,12 +12,24 @@ export class EmployeeService {
 		return this.repository.findAll();
 	}
 
+	/**
+	 * Find all active (non-deleted) employees.
+	 * Used when creating a new raffle.
+	 */
+	async findAllActive(): Promise<Employee[]> {
+		return this.repository.findAllActive();
+	}
+
 	async findById(id: number): Promise<Employee> {
 		const employee = await this.repository.findById(id);
 		if (!employee) {
 			throw new NotFoundException(`Employee with id ${id} not found`);
 		}
 		return employee;
+	}
+
+	async findByIds(ids: number[]): Promise<Employee[]> {
+		return this.repository.findByIds(ids);
 	}
 
 	async create(data: {

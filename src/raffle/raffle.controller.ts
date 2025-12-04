@@ -33,14 +33,16 @@ import {
 	type WinnerResponseDto,
 } from './dto';
 import { RaffleService } from './raffle.service';
-import type { Employee } from '../domain/employee';
 import { Raffle } from '../domain/raffle';
-import { EmployeeRole } from '../domain/shared';
+import { EmployeeService } from '../employee';
 
 @ApiTags('Raffles')
 @Controller('raffles')
 export class RaffleController {
-	constructor(private readonly service: RaffleService) {}
+	constructor(
+		private readonly service: RaffleService,
+		private readonly employeeService: EmployeeService,
+	) {}
 
 	@Post()
 	@ApiOperation({ summary: 'Create a new raffle' })
@@ -97,17 +99,8 @@ export class RaffleController {
 	async addParticipants(
 		@Param('id', ParseIntPipe) id: number,
 		@Body() dto: AddParticipantsDto,
-		// Note: In real implementation, we'd inject EmployeeService to fetch employees
-		// For now, we'll need to fetch them separately or pass full employee data
 	): Promise<RaffleResponseDto> {
-		// This is a simplified version - in practice, you'd fetch employees from EmployeeService
-		const employees: Employee[] = dto.employeeIds.map((empId) => ({
-			id: empId,
-			staffNumber: `EMP${empId.toString().padStart(3, '0')}`,
-			name: `Employee ${empId}`,
-			department: 'Unknown',
-			role: EmployeeRole.JUNIOR,
-		}));
+		const employees = await this.employeeService.findByIds(dto.employeeIds);
 		const raffle = await this.service.addParticipants(id, employees);
 		return this.toResponse(raffle);
 	}
@@ -126,6 +119,7 @@ export class RaffleController {
 	}
 
 	@Post(':id/ready')
+	@HttpCode(HttpStatus.OK)
 	@ApiOperation({ summary: 'Transition raffle to READY status' })
 	@ApiResponse({ status: 200, type: RaffleResponseDto })
 	@ApiNotFoundResponse({ description: 'Raffle not found' })
@@ -136,6 +130,7 @@ export class RaffleController {
 	}
 
 	@Post(':id/draw')
+	@HttpCode(HttpStatus.OK)
 	@ApiOperation({ summary: 'Draw winners for a prize' })
 	@ApiResponse({ status: 200, type: RaffleResponseDto })
 	@ApiNotFoundResponse({ description: 'Raffle not found' })
@@ -162,6 +157,7 @@ export class RaffleController {
 	}
 
 	@Post(':id/complete')
+	@HttpCode(HttpStatus.OK)
 	@ApiOperation({ summary: 'Mark raffle as completed (BONUS status only)' })
 	@ApiResponse({ status: 200, type: RaffleResponseDto })
 	@ApiNotFoundResponse({ description: 'Raffle not found' })
