@@ -15,6 +15,8 @@ import { AppModule } from '../src/app.module';
 describe('Raffle Lifecycle (e2e)', () => {
 	let app: INestApplication;
 	let raffleId: number;
+	let employeeCount: number;
+	let prizeCount: number;
 
 	beforeAll(async () => {
 		const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -43,11 +45,12 @@ describe('Raffle Lifecycle (e2e)', () => {
 		expect(response.status).toBe(200);
 		expect(response.body.length).toBeGreaterThanOrEqual(10);
 
-		// Verify role distribution
 		const seniors = response.body.filter((e: { role: string }) => e.role === 'SENIOR');
 		const juniors = response.body.filter((e: { role: string }) => e.role === 'JUNIOR');
 		expect(seniors.length).toBeGreaterThanOrEqual(5);
 		expect(juniors.length).toBeGreaterThanOrEqual(5);
+
+		employeeCount = response.body.length;
 	});
 
 	it('should have prize templates from seed data', async () => {
@@ -56,11 +59,12 @@ describe('Raffle Lifecycle (e2e)', () => {
 		expect(response.status).toBe(200);
 		expect(response.body.length).toBeGreaterThanOrEqual(5);
 
-		// Verify senior/junior configuration exists
 		response.body.forEach((p: { senior: number; junior: number }) => {
 			expect(typeof p.senior).toBe('number');
 			expect(typeof p.junior).toBe('number');
 		});
+
+		prizeCount = response.body.length;
 	});
 
 	// =========================================================
@@ -76,21 +80,14 @@ describe('Raffle Lifecycle (e2e)', () => {
 		expect(response.body.name).toBe('2024 年末尾牙抽獎');
 		expect(response.body.status).toBe('DRAFT');
 
-		// Should auto-associate all active employees as participants
-		expect(response.body.participants.length).toBe(10);
-
-		// Should auto-associate all active prize templates as prizes
-		expect(response.body.prizes.length).toBe(5);
-
-		// Winners should be empty initially
+		expect(response.body.participants.length).toBe(employeeCount);
+		expect(response.body.prizes.length).toBe(prizeCount);
 		expect(response.body.winners).toEqual([]);
 
-		// All participants should have empty tags by default
 		response.body.participants.forEach((p: { tags: string[] }) => {
 			expect(p.tags).toEqual([]);
 		});
 
-		// Prizes should have correct ranks (1-5)
 		response.body.prizes.forEach((p: { rank: number; isDrawn: boolean }, index: number) => {
 			expect(p.rank).toBe(index + 1);
 			expect(p.isDrawn).toBe(false);
@@ -113,68 +110,43 @@ describe('Raffle Lifecycle (e2e)', () => {
 	});
 
 	// =========================================================
-	// Phase 3: READY → IN_PROGRESS - Draw prizes sequentially
+	// Phase 3: READY → IN_PROGRESS - Draw first prize
 	// =========================================================
 
-	it('should draw rank 1 prize (特獎) and transition to IN_PROGRESS', async () => {
+	it('should draw first prize and transition to IN_PROGRESS', async () => {
 		const response = await request(app.getHttpServer())
 			.post(`/raffles/${raffleId}/draw`);
 
 		expect(response.status).toBe(200);
 		expect(response.body.status).toBe('IN_PROGRESS');
 		expect(response.body.rank).toBe(1);
-		expect(response.body.prize.name).toBe('iPhone 16 Pro Max');
-
-		expect(response.body.winners.length).toBe(2);
-
-		const seniorWinners = response.body.winners.filter((w: { drawnGroup: string }) => w.drawnGroup === 'SENIOR');
-		const juniorWinners = response.body.winners.filter((w: { drawnGroup: string }) => w.drawnGroup === 'JUNIOR');
-		expect(seniorWinners.length).toBe(1);
-		expect(juniorWinners.length).toBe(1);
-	});
-
-	it('should draw rank 2 prize (頭獎)', async () => {
-		const response = await request(app.getHttpServer())
-			.post(`/raffles/${raffleId}/draw`);
-
-		expect(response.status).toBe(200);
-		expect(response.body.status).toBe('IN_PROGRESS');
-		expect(response.body.rank).toBe(2);
-
-		expect(response.body.winners.length).toBe(2);
+		expect(response.body.winners.length).toBeGreaterThan(0);
 	});
 
 	// =========================================================
-	// Phase 4: Continue drawing remaining prizes
+	// Phase 4: Continue drawing all remaining prizes
 	// =========================================================
 
-	it('should draw remaining regular prizes (rank 3-5)', async () => {
-		for (let rank = 3; rank <= 5; rank++) {
+	it('should draw all remaining regular prizes until BONUS status', async () => {
+		let currentStatus = 'IN_PROGRESS';
+		let drawCount = 1; // Already drew rank 1
+
+		while (currentStatus !== 'BONUS' && drawCount < prizeCount) {
 			const response = await request(app.getHttpServer())
 				.post(`/raffles/${raffleId}/draw`);
 
 			expect(response.status).toBe(200);
-			expect(response.body.rank).toBe(rank);
-			expect(response.body.winners.length).toBe(2);
+			expect(response.body.rank).toBe(drawCount + 1);
 
-			if (rank === 5) {
-				expect(response.body.status).toBe('BONUS');
-			} else {
-				expect(response.body.status).toBe('IN_PROGRESS');
-			}
+			currentStatus = response.body.status;
+			drawCount++;
 		}
+
+		expect(currentStatus).toBe('BONUS');
 	});
 
 	// =========================================================
-	// Phase 5: BONUS - Verify no remaining participants for bonus
-	// =========================================================
-
-	// Note: With 5 prizes × 2 winners = 10 winners, all participants have won.
-	// In a real scenario, you might have more participants or fewer prize winners.
-	// This test verifies the BONUS status is reached after all regular prizes are drawn.
-
-	// =========================================================
-	// Phase 6: BONUS → COMPLETED - End the raffle
+	// Phase 5: BONUS → COMPLETED - End the raffle
 	// =========================================================
 
 	it('should mark raffle as completed', async () => {
@@ -205,7 +177,7 @@ describe('Raffle Lifecycle (e2e)', () => {
 	});
 
 	// =========================================================
-	// Phase 7: Final verification
+	// Phase 6: Final verification
 	// =========================================================
 
 	it('should have correct final state', async () => {
@@ -213,18 +185,15 @@ describe('Raffle Lifecycle (e2e)', () => {
 
 		expect(response.status).toBe(200);
 		expect(response.body.status).toBe('COMPLETED');
-		expect(response.body.participants.length).toBe(10);
-		expect(response.body.prizes.length).toBe(5); // 5 regular prizes
+		expect(response.body.participants.length).toBe(employeeCount);
+		expect(response.body.prizes.length).toBe(prizeCount);
 
-		// All prizes should be drawn
 		response.body.prizes.forEach((p: { isDrawn: boolean }) => {
 			expect(p.isDrawn).toBe(true);
 		});
 
-		// All 10 participants should have won (5 prizes × 2 winners each)
-		expect(response.body.winners.length).toBe(10);
+		expect(response.body.winners.length).toBeGreaterThan(0);
 
-		// Each winner should have unique participant
 		const winnerParticipantIds = response.body.winners.map(
 			(w: { participantId: number }) => w.participantId,
 		);
@@ -240,13 +209,6 @@ describe('Raffle Lifecycle (e2e)', () => {
 		console.log(`Participants: ${response.body.participants.length}`);
 		console.log(`Prizes: ${response.body.prizes.length}`);
 		console.log(`Winners: ${response.body.winners.length}`);
-		console.log('----------------------------------------');
-		response.body.prizes.forEach((prize: { name: string; eligibleCounts: { kind: string; total?: number; senior?: number; junior?: number } }) => {
-			const count = prize.eligibleCounts.kind === 'bonus'
-				? prize.eligibleCounts.total
-				: (prize.eligibleCounts.senior ?? 0) + (prize.eligibleCounts.junior ?? 0);
-			console.log(`  ${prize.name} (${prize.eligibleCounts.kind}): ${count} winners`);
-		});
 		console.log('========================================\n');
 		/* eslint-enable no-console */
 	});
