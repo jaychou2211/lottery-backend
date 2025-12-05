@@ -21,6 +21,7 @@ import {
 
 import {
 	AddBonusPrizeDto,
+	BonusPrizeResponseDto,
 	CreateRaffleDto,
 	DrawDto,
 	DrawResponseDto,
@@ -108,15 +109,23 @@ export class RaffleController {
 
 	@Post(':id/bonus-prizes')
 	@ApiOperation({ summary: 'Add a bonus prize (BONUS status only)' })
-	@ApiResponse({ status: 201, type: RaffleResponseDto })
+	@ApiResponse({ status: 201, type: BonusPrizeResponseDto })
 	@ApiNotFoundResponse({ description: 'Raffle not found' })
 	@ApiBadRequestResponse({ description: 'Invalid status or insufficient remaining participants' })
 	async addBonusPrize(
 		@Param('id', ParseIntPipe) id: number,
 		@Body() dto: AddBonusPrizeDto,
-	): Promise<RaffleResponseDto> {
+	): Promise<BonusPrizeResponseDto> {
 		const raffle = await this.service.addBonusPrize(id, dto);
-		return this.toResponse(raffle);
+		const prize = raffle.prizes[raffle.prizes.length - 1];
+		return {
+			id: prize.id,
+			rank: prize.rank,
+			name: prize.name,
+			prizeLevel: prize.prizeLevel,
+			imageUrl: prize.imageUrl,
+			eligibleCounts: { kind: 'bonus', total: prize.eligibleCounts.total },
+		};
 	}
 
 	private toResponse(raffle: Raffle, exclude: string[] = []): RaffleResponseDto {

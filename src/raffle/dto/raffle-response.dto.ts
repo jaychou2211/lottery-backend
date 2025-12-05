@@ -93,3 +93,12 @@ export class DrawResponseDto {
 	@ApiProperty({ enum: RaffleStatus })
 	status: RaffleStatus;
 }
+
+export class BonusPrizeResponseDto {
+	id: number;
+	rank: number;
+	name: string;
+	prizeLevel: string;
+	imageUrl: string;
+	eligibleCounts: { kind: 'bonus'; total: number };
+}
