@@ -28,43 +28,19 @@ describe('RaffleParticipant', () => {
 			expect(participant.role).toBe(EmployeeRole.SENIOR);
 		});
 
-		it('should default attended to true', () => {
+		it('should default tags to empty array', () => {
 			const participant = RaffleParticipant.create(baseProps);
 
-			expect(participant.attended).toBe(true);
+			expect(participant.tags).toEqual([]);
 		});
 
-		it('should accept explicit attended value', () => {
+		it('should accept explicit tags value', () => {
 			const participant = RaffleParticipant.create({
 				...baseProps,
-				attended: false,
+				tags: ['sick leave'],
 			});
 
-			expect(participant.attended).toBe(false);
-		});
-	});
-
-	describe('withAttended', () => {
-		it('should return new instance with updated attended', () => {
-			const participant = RaffleParticipant.create(baseProps);
-
-			const updated = participant.withAttended(false);
-
-			expect(updated.attended).toBe(false);
-			expect(participant.attended).toBe(true); // immutable
-		});
-
-		it('should preserve all other properties', () => {
-			const participant = RaffleParticipant.create(baseProps);
-
-			const updated = participant.withAttended(false);
-
-			expect(updated.id).toBe(participant.id);
-			expect(updated.employeeId).toBe(participant.employeeId);
-			expect(updated.staffNumber).toBe(participant.staffNumber);
-			expect(updated.name).toBe(participant.name);
-			expect(updated.department).toBe(participant.department);
-			expect(updated.role).toBe(participant.role);
+			expect(participant.tags).toEqual(['sick leave']);
 		});
 	});
 
@@ -86,7 +62,7 @@ describe('RaffleParticipant', () => {
 			expect(participant.name).toBe('John Doe');
 			expect(participant.department).toBe('Engineering');
 			expect(participant.role).toBe(EmployeeRole.SENIOR);
-			expect(participant.attended).toBe(true);
+			expect(participant.tags).toEqual([]);
 		});
 	});
 });

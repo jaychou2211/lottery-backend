@@ -11,7 +11,6 @@ import {
 	InsufficientEmployeesError,
 	InvalidRaffleStatusError,
 	DuplicateParticipantError,
-	ParticipantNotFoundError,
 	EmptyParticipantsError,
 } from './errors';
 import type { LotteryStrategy, WinnerInput } from './lottery-strategy';
@@ -155,47 +154,6 @@ export class Raffle {
 			this.status,
 			this.prizes,
 			[...this.participants, ...newParticipants],
-			this.winners,
-		);
-	}
-
-	/**
-	 * Mark attendance for participants.
-	 *
-	 * @throws InvalidRaffleStatusError if not in DRAFT or READY status
-	 * @throws ParticipantNotFoundError if any employeeId is not found
-	 */
-	markAttendance(records: readonly { employeeId: number; attended: boolean }[]): Raffle {
-		if (this.status !== RaffleStatus.DRAFT && this.status !== RaffleStatus.READY) {
-			throw new InvalidRaffleStatusError('mark attendance', this.status, [RaffleStatus.DRAFT, RaffleStatus.READY]);
-		}
-
-		// Validate all employeeIds exist
-		const participantMap = new Map(this.participants.map((p) => [p.employeeId, p]));
-		for (const record of records) {
-			if (!participantMap.has(record.employeeId)) {
-				throw new ParticipantNotFoundError(record.employeeId);
-			}
-		}
-
-		// Create lookup for updates
-		const updates = new Map(records.map((r) => [r.employeeId, r.attended]));
-
-		// Update participants
-		const updatedParticipants = this.participants.map((p) => {
-			const newAttended = updates.get(p.employeeId);
-			if (newAttended !== undefined) {
-				return p.withAttended(newAttended);
-			}
-			return p;
-		});
-
-		return new Raffle(
-			this.id,
-			this.name,
-			this.status,
-			this.prizes,
-			updatedParticipants,
 			this.winners,
 		);
 	}

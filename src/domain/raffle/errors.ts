@@ -108,14 +108,6 @@ export class DuplicateParticipantError extends DomainError {
 	}
 }
 
-export class ParticipantNotFoundError extends DomainError {
-	readonly code = 'PARTICIPANT_NOT_FOUND';
-
-	constructor(public readonly employeeId: number) {
-		super(`participant with employeeId ${employeeId} not found`);
-	}
-}
-
 export class EmptyParticipantsError extends DomainError {
 	readonly code = 'EMPTY_PARTICIPANTS';
 
@@ -135,5 +127,4 @@ export type RaffleError =
 	| InsufficientEmployeesError
 	| InvalidRaffleStatusError
 	| DuplicateParticipantError
-	| ParticipantNotFoundError
 	| EmptyParticipantsError;

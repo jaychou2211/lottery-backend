@@ -11,16 +11,10 @@ import { AppModule } from '../src/app.module';
  *
  * Tests the complete raffle lifecycle:
  * DRAFT → READY → IN_PROGRESS → BONUS → COMPLETED
- *
- * Scenario:
- * - 年末尾牙抽獎活動
- * - Raffle automatically associates all active employees (10) and prize templates (8)
- * - 標記 2 人缺席（不影響抽獎資格，只影響領獎方式）
  */
 describe('Raffle Lifecycle (e2e)', () => {
 	let app: INestApplication;
 	let raffleId: number;
-	let employeeIds: number[];
 
 	beforeAll(async () => {
 		const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -48,9 +42,6 @@ describe('Raffle Lifecycle (e2e)', () => {
 
 		expect(response.status).toBe(200);
 		expect(response.body.length).toBeGreaterThanOrEqual(10);
-
-		// Store employee IDs for later use
-		employeeIds = response.body.slice(0, 10).map((e: { id: number }) => e.id);
 
 		// Verify role distribution
 		const seniors = response.body.filter((e: { role: string }) => e.role === 'SENIOR');
@@ -94,9 +85,9 @@ describe('Raffle Lifecycle (e2e)', () => {
 		// Winners should be empty initially
 		expect(response.body.winners).toEqual([]);
 
-		// All participants should be marked as attended by default
-		response.body.participants.forEach((p: { attended: boolean }) => {
-			expect(p.attended).toBe(true);
+		// All participants should have empty tags by default
+		response.body.participants.forEach((p: { tags: string[] }) => {
+			expect(p.tags).toEqual([]);
 		});
 
 		// Prizes should have correct ranks (1-5)
@@ -106,24 +97,6 @@ describe('Raffle Lifecycle (e2e)', () => {
 		});
 
 		raffleId = response.body.id;
-	});
-
-	it('should mark some participants as absent', async () => {
-		// Mark 2 participants (index 0 and 5) as absent
-		// This doesn't affect lottery eligibility, only prize collection method
-		const response = await request(app.getHttpServer())
-			.patch(`/raffles/${raffleId}/attendance`)
-			.send({
-				records: [
-					{ employeeId: employeeIds[0], attended: false },
-					{ employeeId: employeeIds[5], attended: false },
-				],
-			});
-
-		expect(response.status).toBe(200);
-
-		const absentees = response.body.participants.filter((p: { attended: boolean }) => !p.attended);
-		expect(absentees.length).toBe(2);
 	});
 
 	// =========================================================

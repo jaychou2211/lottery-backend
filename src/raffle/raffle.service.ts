@@ -91,22 +91,6 @@ export class RaffleService {
 		}
 	}
 
-	async markAttendance(
-		raffleId: number,
-		records: readonly { employeeId: number; attended: boolean }[],
-	): Promise<Raffle> {
-		const raffle = await this.findById(raffleId);
-		try {
-			const updated = raffle.markAttendance(records);
-			return this.repository.save(updated);
-		} catch (e) {
-			if (e instanceof DomainError) {
-				throw new BadRequestException(e.message);
-			}
-			throw e;
-		}
-	}
-
 	async updateStatus(raffleId: number, status: 'READY' | 'COMPLETED'): Promise<Raffle> {
 		const raffle = await this.findById(raffleId);
 		try {

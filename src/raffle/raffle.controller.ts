@@ -22,7 +22,6 @@ import {
 	AddBonusPrizeDto,
 	CreateRaffleDto,
 	DrawDto,
-	MarkAttendanceDto,
 	RaffleResponseDto,
 	RaffleSummaryDto,
 	UpdateStatusDto,
@@ -71,19 +70,6 @@ export class RaffleController {
 	@ApiNotFoundResponse({ description: 'Raffle not found' })
 	async delete(@Param('id', ParseIntPipe) id: number): Promise<void> {
 		return this.service.delete(id);
-	}
-
-	@Patch(':id/attendance')
-	@ApiOperation({ summary: 'Mark attendance for participants (DRAFT/READY status only)' })
-	@ApiResponse({ status: 200, type: RaffleResponseDto })
-	@ApiNotFoundResponse({ description: 'Raffle not found' })
-	@ApiBadRequestResponse({ description: 'Invalid status or participant not found' })
-	async markAttendance(
-		@Param('id', ParseIntPipe) id: number,
-		@Body() dto: MarkAttendanceDto,
-	): Promise<RaffleResponseDto> {
-		const raffle = await this.service.markAttendance(id, dto.records);
-		return this.toResponse(raffle);
 	}
 
 	@Patch(':id/status')
@@ -138,7 +124,7 @@ export class RaffleController {
 				name: p.name,
 				department: p.department,
 				role: p.role,
-				attended: p.attended,
+				tags: [...p.tags],
 			})),
 			prizes: raffle.prizes.map((p): PrizeResponseDto => ({
 				id: p.id,

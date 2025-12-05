@@ -12,7 +12,7 @@ export class ParticipantResponseDto {
 	@ApiProperty({ enum: EmployeeRole })
 	role: EmployeeRole;
 
-	attended: boolean;
+	tags: string[];
 }
 
 export class EligibleCountsResponseDto {

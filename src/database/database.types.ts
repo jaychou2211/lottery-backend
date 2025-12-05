@@ -92,8 +92,10 @@ export interface RaffleParticipantTable {
 	department: string;
 	/** EmployeeRole: 'SENIOR' | 'JUNIOR' */
 	role: string;
-	attended: number; // SQLite boolean
+	tags: string | null;
 	created_at: ColumnType<string, string | undefined, never>;
+	updated_at: ColumnType<string, string | undefined, string | undefined>;
+	deleted_at: string | null;
 }
 
 export type RaffleParticipantRow = Selectable<RaffleParticipantTable>;

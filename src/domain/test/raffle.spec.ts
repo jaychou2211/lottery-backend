@@ -14,7 +14,6 @@ import {
 	PrizeTypeMismatchError,
 	InvalidRaffleStatusError,
 	DuplicateParticipantError,
-	ParticipantNotFoundError,
 	EmptyParticipantsError,
 } from '../raffle';
 import type { LotteryStrategy, RaffleParticipant } from '../raffle';
@@ -544,21 +543,6 @@ describe('Raffle', () => {
 			expect(afterSecond.hasParticipantWon(2)).toBe(true);
 		});
 
-		it('should allow attended=false participants to be drawn', () => {
-			const prize = fakePrize({ id: 1, rank: 1, eligibleCounts: RegularEligibleCounts.create(1, 0) });
-			const participant = fakeParticipant({ id: 1, employeeId: 100, role: EmployeeRole.SENIOR }).withAttended(false);
-			const raffle = fakeRaffle({
-				prizes: [prize],
-				status: RaffleStatus.READY,
-				participants: [participant],
-			});
-			const lottery = fixedLottery([{ participantId: 1, drawnGroup: DrawnGroup.SENIOR }]);
-
-			const result = raffle.draw(1, lottery);
-
-			expect(result.winners).toHaveLength(1);
-			expect(result.winners[0].participantId).toBe(1);
-		});
 	});
 
 	describe('immutability', () => {
@@ -629,7 +613,7 @@ describe('Raffle', () => {
 			expect(participant.name).toBe('John Doe');
 			expect(participant.department).toBe('Engineering');
 			expect(participant.role).toBe(EmployeeRole.SENIOR);
-			expect(participant.attended).toBe(true);
+			expect(participant.tags).toEqual([]);
 		});
 
 		it('should not change participants when given empty array', () => {
@@ -675,91 +659,6 @@ describe('Raffle', () => {
 			raffle.addParticipants(employees);
 
 			expect(raffle.participants).toHaveLength(0);
-		});
-	});
-
-	describe('markAttendance', () => {
-		it('should mark single participant attendance in DRAFT status', () => {
-			const raffle = fakeRaffle({
-				status: RaffleStatus.DRAFT,
-				participants: [fakeParticipant({ id: 1, employeeId: 100, role: EmployeeRole.SENIOR })],
-			});
-
-			const result = raffle.markAttendance([{ employeeId: 100, attended: false }]);
-
-			expect(result.participants[0].attended).toBe(false);
-		});
-
-		it('should mark single participant attendance in READY status', () => {
-			const raffle = fakeRaffle({
-				status: RaffleStatus.READY,
-				participants: [fakeParticipant({ id: 1, employeeId: 100, role: EmployeeRole.SENIOR })],
-			});
-
-			const result = raffle.markAttendance([{ employeeId: 100, attended: false }]);
-
-			expect(result.participants[0].attended).toBe(false);
-		});
-
-		it('should mark multiple participants attendance', () => {
-			const raffle = fakeRaffle({
-				status: RaffleStatus.DRAFT,
-				participants: [
-					fakeParticipant({ id: 1, employeeId: 100, role: EmployeeRole.SENIOR }),
-					fakeParticipant({ id: 2, employeeId: 200, role: EmployeeRole.JUNIOR }),
-					fakeParticipant({ id: 3, employeeId: 300, role: EmployeeRole.SENIOR }),
-				],
-			});
-
-			const result = raffle.markAttendance([
-				{ employeeId: 100, attended: false },
-				{ employeeId: 300, attended: false },
-			]);
-
-			expect(result.participants.find((p) => p.employeeId === 100)?.attended).toBe(false);
-			expect(result.participants.find((p) => p.employeeId === 200)?.attended).toBe(true);
-			expect(result.participants.find((p) => p.employeeId === 300)?.attended).toBe(false);
-		});
-
-		it('should throw InvalidRaffleStatusError when in IN_PROGRESS status', () => {
-			const raffle = fakeRaffle({
-				status: RaffleStatus.IN_PROGRESS,
-				participants: [fakeParticipant({ id: 1, employeeId: 100, role: EmployeeRole.SENIOR })],
-			});
-
-			expect(() => raffle.markAttendance([{ employeeId: 100, attended: false }]))
-				.toThrow(InvalidRaffleStatusError);
-		});
-
-		it('should throw InvalidRaffleStatusError when in BONUS status', () => {
-			const raffle = fakeRaffle({
-				status: RaffleStatus.BONUS,
-				participants: [fakeParticipant({ id: 1, employeeId: 100, role: EmployeeRole.SENIOR })],
-			});
-
-			expect(() => raffle.markAttendance([{ employeeId: 100, attended: false }]))
-				.toThrow(InvalidRaffleStatusError);
-		});
-
-		it('should throw ParticipantNotFoundError when employeeId not found', () => {
-			const raffle = fakeRaffle({
-				status: RaffleStatus.DRAFT,
-				participants: [fakeParticipant({ id: 1, employeeId: 100, role: EmployeeRole.SENIOR })],
-			});
-
-			expect(() => raffle.markAttendance([{ employeeId: 999, attended: false }]))
-				.toThrow(ParticipantNotFoundError);
-		});
-
-		it('should not modify original raffle', () => {
-			const raffle = fakeRaffle({
-				status: RaffleStatus.DRAFT,
-				participants: [fakeParticipant({ id: 1, employeeId: 100, role: EmployeeRole.SENIOR })],
-			});
-
-			raffle.markAttendance([{ employeeId: 100, attended: false }]);
-
-			expect(raffle.participants[0].attended).toBe(true);
 		});
 	});
 });

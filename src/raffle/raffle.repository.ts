@@ -96,7 +96,7 @@ export class RaffleRepository {
 
 	private async loadAggregate(row: RaffleRow): Promise<Raffle> {
 		const [participantRows, prizeRows, winnerRows] = await Promise.all([
-			this.db.selectFrom('raffle_participant').selectAll().where('raffle_id', '=', row.id).execute(),
+			this.db.selectFrom('raffle_participant').selectAll().where('raffle_id', '=', row.id).where('deleted_at', 'is', null).execute(),
 			this.db.selectFrom('raffle_prize').selectAll().where('raffle_id', '=', row.id).orderBy('rank').execute(),
 			this.db.selectFrom('winner_record').selectAll().where('raffle_id', '=', row.id).execute(),
 		]);
@@ -118,8 +118,9 @@ export class RaffleRepository {
 	private async syncParticipants(trx: KyselyDatabase, raffle: Raffle): Promise<void> {
 		const existingRows = await trx
 			.selectFrom('raffle_participant')
-			.select(['id', 'employee_id', 'attended'])
+			.select(['id', 'employee_id'])
 			.where('raffle_id', '=', raffle.id)
+			.where('deleted_at', 'is', null)
 			.execute();
 
 		const existingMap = new Map(existingRows.map((r) => [r.employee_id, r]));
@@ -127,17 +128,8 @@ export class RaffleRepository {
 		for (const p of raffle.participants) {
 			const existing = existingMap.get(p.employeeId);
 			if (existing) {
-				// Update attendance if changed
-				if ((existing.attended === 1) !== p.attended) {
-					await trx
-						.updateTable('raffle_participant')
-						.set({ attended: p.attended ? 1 : 0 })
-						.where('id', '=', existing.id)
-						.execute();
-				}
 				existingMap.delete(p.employeeId);
 			} else {
-				// Insert new participant
 				const newParticipant: NewRaffleParticipant = {
 					raffle_id: raffle.id,
 					employee_id: p.employeeId,
@@ -145,16 +137,20 @@ export class RaffleRepository {
 					name: p.name,
 					department: p.department,
 					role: p.role,
-					attended: p.attended ? 1 : 0,
+					tags: p.tags.length > 0 ? JSON.stringify(p.tags) : null,
 				};
 				await trx.insertInto('raffle_participant').values(newParticipant).execute();
 			}
 		}
 
-		// Delete removed participants (if any)
+		// Soft delete removed participants
 		const removedIds = Array.from(existingMap.values()).map((r) => r.id);
 		if (removedIds.length > 0) {
-			await trx.deleteFrom('raffle_participant').where('id', 'in', removedIds).execute();
+			await trx
+				.updateTable('raffle_participant')
+				.set({ deleted_at: new Date().toISOString() })
+				.where('id', 'in', removedIds)
+				.execute();
 		}
 	}
 
@@ -230,7 +226,7 @@ export class RaffleRepository {
 			name: row.name,
 			department: row.department,
 			role: row.role as EmployeeRole,
-			attended: row.attended === 1,
+			tags: row.tags ? JSON.parse(row.tags) : [],
 		});
 	}
 
