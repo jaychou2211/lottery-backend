@@ -138,14 +138,6 @@ describe('Raffle Lifecycle (e2e)', () => {
 		expect(response.body.status).toBe('READY');
 	});
 
-	it('should reject adding participants after READY', async () => {
-		const response = await request(app.getHttpServer())
-			.post(`/raffles/${raffleId}/participants`)
-			.send({ employeeIds: [999] });
-
-		expect(response.status).toBe(400);
-	});
-
 	// =========================================================
 	// Phase 3: READY → IN_PROGRESS - Draw prizes sequentially
 	// =========================================================

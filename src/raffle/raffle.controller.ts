@@ -20,8 +20,6 @@ import {
 
 import {
 	AddBonusPrizeDto,
-	AddParticipantsDto,
-	AddPrizesDto,
 	CreateRaffleDto,
 	DrawDto,
 	MarkAttendanceDto,
@@ -34,15 +32,11 @@ import {
 } from './dto';
 import { RaffleService } from './raffle.service';
 import { Raffle } from '../domain/raffle';
-import { EmployeeService } from '../employee';
 
 @ApiTags('Raffles')
 @Controller('raffles')
 export class RaffleController {
-	constructor(
-		private readonly service: RaffleService,
-		private readonly employeeService: EmployeeService,
-	) {}
+	constructor(private readonly service: RaffleService) {}
 
 	@Post()
 	@ApiOperation({ summary: 'Create a new raffle' })
@@ -76,33 +70,6 @@ export class RaffleController {
 	@ApiNotFoundResponse({ description: 'Raffle not found' })
 	async delete(@Param('id', ParseIntPipe) id: number): Promise<void> {
 		return this.service.delete(id);
-	}
-
-	@Post(':id/prizes')
-	@ApiOperation({ summary: 'Add prizes to a raffle (DRAFT status only)' })
-	@ApiResponse({ status: 201, type: RaffleResponseDto })
-	@ApiNotFoundResponse({ description: 'Raffle not found' })
-	@ApiBadRequestResponse({ description: 'Invalid status or prize configuration' })
-	async addPrizes(
-		@Param('id', ParseIntPipe) id: number,
-		@Body() dto: AddPrizesDto,
-	): Promise<RaffleResponseDto> {
-		const raffle = await this.service.addPrizes(id, dto.prizes);
-		return this.toResponse(raffle);
-	}
-
-	@Post(':id/participants')
-	@ApiOperation({ summary: 'Add participants to a raffle (DRAFT status only)' })
-	@ApiResponse({ status: 201, type: RaffleResponseDto })
-	@ApiNotFoundResponse({ description: 'Raffle not found' })
-	@ApiBadRequestResponse({ description: 'Invalid status or duplicate participants' })
-	async addParticipants(
-		@Param('id', ParseIntPipe) id: number,
-		@Body() dto: AddParticipantsDto,
-	): Promise<RaffleResponseDto> {
-		const employees = await this.employeeService.findByIds(dto.employeeIds);
-		const raffle = await this.service.addParticipants(id, employees);
-		return this.toResponse(raffle);
 	}
 
 	@Patch(':id/attendance')

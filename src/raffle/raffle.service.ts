@@ -1,7 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
 import { RaffleRepository } from './raffle.repository';
-import type { Employee } from '../domain/employee';
 import { Raffle } from '../domain/raffle';
 import { RafflePrize, type PersistedBonusPrize, type PersistedPrize } from '../domain/raffle/raffle-prize';
 import { BonusEligibleCounts, RegularEligibleCounts } from '../domain/shared';
@@ -89,19 +88,6 @@ export class RaffleService {
 		const deleted = await this.repository.delete(id);
 		if (!deleted) {
 			throw new NotFoundException(`Raffle with id ${id} not found`);
-		}
-	}
-
-	async addParticipants(raffleId: number, employees: readonly Employee[]): Promise<Raffle> {
-		const raffle = await this.findById(raffleId);
-		try {
-			const updated = raffle.addParticipants(employees);
-			return this.repository.save(updated);
-		} catch (e) {
-			if (e instanceof DomainError) {
-				throw new BadRequestException(e.message);
-			}
-			throw e;
 		}
 	}
 
@@ -194,44 +180,4 @@ export class RaffleService {
 		}
 	}
 
-	async addPrizes(
-		raffleId: number,
-		prizes: readonly {
-			rank: number;
-			name: string;
-			prizeLevel: string;
-			imageUrl: string;
-			senior: number;
-			junior: number;
-			prizeTemplateId?: number;
-		}[],
-	): Promise<Raffle> {
-		const raffle = await this.findById(raffleId);
-
-		// Create prizes with proper eligible counts
-		const rafflePrizes = prizes.map((p) =>
-			RafflePrize.create({
-				id: -1, // Temporary, will be replaced by DB
-				rank: p.rank,
-				name: p.name,
-				prizeLevel: p.prizeLevel,
-				imageUrl: p.imageUrl,
-				eligibleCounts: RegularEligibleCounts.create(p.senior, p.junior),
-				prizeTemplateId: p.prizeTemplateId,
-			}),
-		);
-
-		// Create new raffle with prizes
-		// Note: prizes don't have real IDs yet, they'll be assigned by the DB
-		const updated = Raffle.create({
-			id: raffle.id,
-			name: raffle.name,
-			status: raffle.status,
-			prizes: rafflePrizes as unknown as PersistedPrize[],
-			participants: [...raffle.participants],
-			winners: [...raffle.winners],
-		});
-
-		return this.repository.save(updated);
-	}
 }
