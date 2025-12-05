@@ -107,10 +107,10 @@ export class RaffleService {
 		}
 	}
 
-	async transitionToReady(raffleId: number): Promise<Raffle> {
+	async updateStatus(raffleId: number, status: 'READY' | 'COMPLETED'): Promise<Raffle> {
 		const raffle = await this.findById(raffleId);
 		try {
-			const updated = raffle.transitionToReady();
+			const updated = status === 'READY' ? raffle.transitionToReady() : raffle.markAsCompleted();
 			return this.repository.save(updated);
 		} catch (e) {
 			if (e instanceof DomainError) {
@@ -158,19 +158,6 @@ export class RaffleService {
 			}) as PersistedBonusPrize;
 
 			const updated = raffle.addBonusPrize(bonusPrize);
-			return this.repository.save(updated);
-		} catch (e) {
-			if (e instanceof DomainError) {
-				throw new BadRequestException(e.message);
-			}
-			throw e;
-		}
-	}
-
-	async markAsCompleted(raffleId: number): Promise<Raffle> {
-		const raffle = await this.findById(raffleId);
-		try {
-			const updated = raffle.markAsCompleted();
 			return this.repository.save(updated);
 		} catch (e) {
 			if (e instanceof DomainError) {

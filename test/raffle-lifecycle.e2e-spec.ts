@@ -132,7 +132,8 @@ describe('Raffle Lifecycle (e2e)', () => {
 
 	it('should transition to READY status', async () => {
 		const response = await request(app.getHttpServer())
-			.post(`/raffles/${raffleId}/ready`);
+			.patch(`/raffles/${raffleId}/status`)
+			.send({ status: 'READY' });
 
 		expect(response.status).toBe(200);
 		expect(response.body.status).toBe('READY');
@@ -246,7 +247,8 @@ describe('Raffle Lifecycle (e2e)', () => {
 
 	it('should mark raffle as completed', async () => {
 		const response = await request(app.getHttpServer())
-			.post(`/raffles/${raffleId}/complete`);
+			.patch(`/raffles/${raffleId}/status`)
+			.send({ status: 'COMPLETED' });
 
 		expect(response.status).toBe(200);
 		expect(response.body.status).toBe('COMPLETED');

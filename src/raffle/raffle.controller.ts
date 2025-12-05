@@ -25,6 +25,7 @@ import {
 	MarkAttendanceDto,
 	RaffleResponseDto,
 	RaffleSummaryDto,
+	UpdateStatusDto,
 	type EligibleCountsResponseDto,
 	type ParticipantResponseDto,
 	type PrizeResponseDto,
@@ -85,14 +86,16 @@ export class RaffleController {
 		return this.toResponse(raffle);
 	}
 
-	@Post(':id/ready')
-	@HttpCode(HttpStatus.OK)
-	@ApiOperation({ summary: 'Transition raffle to READY status' })
+	@Patch(':id/status')
+	@ApiOperation({ summary: 'Update raffle status' })
 	@ApiResponse({ status: 200, type: RaffleResponseDto })
 	@ApiNotFoundResponse({ description: 'Raffle not found' })
-	@ApiBadRequestResponse({ description: 'Invalid status transition or insufficient participants' })
-	async transitionToReady(@Param('id', ParseIntPipe) id: number): Promise<RaffleResponseDto> {
-		const raffle = await this.service.transitionToReady(id);
+	@ApiBadRequestResponse({ description: 'Invalid status transition' })
+	async updateStatus(
+		@Param('id', ParseIntPipe) id: number,
+		@Body() dto: UpdateStatusDto,
+	): Promise<RaffleResponseDto> {
+		const raffle = await this.service.updateStatus(id, dto.status);
 		return this.toResponse(raffle);
 	}
 
@@ -120,17 +123,6 @@ export class RaffleController {
 		@Body() dto: AddBonusPrizeDto,
 	): Promise<RaffleResponseDto> {
 		const raffle = await this.service.addBonusPrize(id, dto);
-		return this.toResponse(raffle);
-	}
-
-	@Post(':id/complete')
-	@HttpCode(HttpStatus.OK)
-	@ApiOperation({ summary: 'Mark raffle as completed (BONUS status only)' })
-	@ApiResponse({ status: 200, type: RaffleResponseDto })
-	@ApiNotFoundResponse({ description: 'Raffle not found' })
-	@ApiBadRequestResponse({ description: 'Invalid status transition' })
-	async markAsCompleted(@Param('id', ParseIntPipe) id: number): Promise<RaffleResponseDto> {
-		const raffle = await this.service.markAsCompleted(id);
 		return this.toResponse(raffle);
 	}
 
