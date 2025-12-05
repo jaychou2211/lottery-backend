@@ -104,10 +104,10 @@ export class RaffleService {
 		}
 	}
 
-	async draw(raffleId: number, rank: number): Promise<Raffle> {
+	async draw(raffleId: number): Promise<Raffle> {
 		const raffle = await this.findById(raffleId);
 		try {
-			const updated = raffle.draw(rank);
+			const updated = raffle.draw();
 			return this.repository.save(updated);
 		} catch (e) {
 			if (e instanceof DomainError) {

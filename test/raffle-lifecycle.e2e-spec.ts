@@ -118,43 +118,29 @@ describe('Raffle Lifecycle (e2e)', () => {
 
 	it('should draw rank 1 prize (特獎) and transition to IN_PROGRESS', async () => {
 		const response = await request(app.getHttpServer())
-			.post(`/raffles/${raffleId}/draw`)
-			.send({ rank: 1 });
+			.post(`/raffles/${raffleId}/draw`);
 
 		expect(response.status).toBe(200);
 		expect(response.body.status).toBe('IN_PROGRESS');
 		expect(response.body.rank).toBe(1);
 		expect(response.body.prize.name).toBe('iPhone 16 Pro Max');
 
-		// Should have 2 winners (senior: 1, junior: 1)
 		expect(response.body.winners.length).toBe(2);
 
-		// Verify drawn groups
 		const seniorWinners = response.body.winners.filter((w: { drawnGroup: string }) => w.drawnGroup === 'SENIOR');
 		const juniorWinners = response.body.winners.filter((w: { drawnGroup: string }) => w.drawnGroup === 'JUNIOR');
 		expect(seniorWinners.length).toBe(1);
 		expect(juniorWinners.length).toBe(1);
 	});
 
-	it('should reject drawing out of order', async () => {
-		// Try to draw rank 3 when rank 2 hasn't been drawn
-		const response = await request(app.getHttpServer())
-			.post(`/raffles/${raffleId}/draw`)
-			.send({ rank: 3 });
-
-		expect(response.status).toBe(400);
-	});
-
 	it('should draw rank 2 prize (頭獎)', async () => {
 		const response = await request(app.getHttpServer())
-			.post(`/raffles/${raffleId}/draw`)
-			.send({ rank: 2 });
+			.post(`/raffles/${raffleId}/draw`);
 
 		expect(response.status).toBe(200);
 		expect(response.body.status).toBe('IN_PROGRESS');
 		expect(response.body.rank).toBe(2);
 
-		// Should have 2 winners (senior: 1, junior: 1)
 		expect(response.body.winners.length).toBe(2);
 	});
 
@@ -165,8 +151,7 @@ describe('Raffle Lifecycle (e2e)', () => {
 	it('should draw remaining regular prizes (rank 3-5)', async () => {
 		for (let rank = 3; rank <= 5; rank++) {
 			const response = await request(app.getHttpServer())
-				.post(`/raffles/${raffleId}/draw`)
-				.send({ rank });
+				.post(`/raffles/${raffleId}/draw`);
 
 			expect(response.status).toBe(200);
 			expect(response.body.rank).toBe(rank);
@@ -202,7 +187,6 @@ describe('Raffle Lifecycle (e2e)', () => {
 	});
 
 	it('should reject any further operations on completed raffle', async () => {
-		// Try to add more bonus prizes
 		const bonusResponse = await request(app.getHttpServer())
 			.post(`/raffles/${raffleId}/bonus-prizes`)
 			.send({
@@ -214,10 +198,8 @@ describe('Raffle Lifecycle (e2e)', () => {
 
 		expect(bonusResponse.status).toBe(400);
 
-		// Try to draw
 		const drawResponse = await request(app.getHttpServer())
-			.post(`/raffles/${raffleId}/draw`)
-			.send({ rank: 99 });
+			.post(`/raffles/${raffleId}/draw`);
 
 		expect(drawResponse.status).toBe(400);
 	});

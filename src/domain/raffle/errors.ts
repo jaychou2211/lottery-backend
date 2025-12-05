@@ -12,34 +12,11 @@ export class InvalidStatusTransitionError extends DomainError {
 	}
 }
 
-export class PrizeNotFoundError extends DomainError {
-	readonly code = 'PRIZE_NOT_FOUND';
+export class NoPrizeToDrawError extends DomainError {
+	readonly code = 'NO_PRIZE_TO_DRAW';
 
-	constructor(public readonly rank: number) {
-		super(`no prize with rank ${rank}`);
-	}
-}
-
-export class AlreadyDrawnError extends DomainError {
-	readonly code = 'ALREADY_DRAWN';
-
-	constructor(public readonly rank: number) {
-		super(`prize rank ${rank} has already been drawn`);
-	}
-}
-
-export class InvalidDrawOrderError extends DomainError {
-	readonly code = 'INVALID_DRAW_ORDER';
-
-	constructor(
-		public readonly requestedRank: number,
-		public readonly expectedRank: number | null,
-	) {
-		const message =
-			expectedRank === null
-				? `no more prizes to draw, but requested rank ${requestedRank}`
-				: `must draw rank ${expectedRank} before rank ${requestedRank}`;
-		super(message);
+	constructor() {
+		super('no prizes available to draw');
 	}
 }
 
@@ -60,18 +37,6 @@ export class InvalidWinnerCountError extends DomainError {
 		public readonly actual: number,
 	) {
 		super(`expected ${expected} ${group} winners, got ${actual}`);
-	}
-}
-
-export class PrizeTypeMismatchError extends DomainError {
-	readonly code = 'PRIZE_TYPE_MISMATCH';
-
-	constructor(
-		public readonly isBonus: boolean,
-		public readonly status: RaffleStatus,
-	) {
-		const prizeType = isBonus ? 'bonus' : 'regular';
-		super(`cannot draw ${prizeType} prize in ${status} status`);
 	}
 }
 
@@ -118,12 +83,9 @@ export class EmptyParticipantsError extends DomainError {
 
 export type RaffleError =
 	| InvalidStatusTransitionError
-	| PrizeNotFoundError
-	| AlreadyDrawnError
-	| InvalidDrawOrderError
+	| NoPrizeToDrawError
 	| ParticipantAlreadyWonError
 	| InvalidWinnerCountError
-	| PrizeTypeMismatchError
 	| InsufficientEmployeesError
 	| InvalidRaffleStatusError
 	| DuplicateParticipantError

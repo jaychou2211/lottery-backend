@@ -23,7 +23,6 @@ import {
 	AddBonusPrizeDto,
 	BonusPrizeResponseDto,
 	CreateRaffleDto,
-	DrawDto,
 	DrawResponseDto,
 	RaffleResponseDto,
 	RaffleSummaryDto,
@@ -95,16 +94,13 @@ export class RaffleController {
 
 	@Post(':id/draw')
 	@HttpCode(HttpStatus.OK)
-	@ApiOperation({ summary: 'Draw winners for a prize' })
+	@ApiOperation({ summary: 'Draw winners for the next prize' })
 	@ApiResponse({ status: 200, type: DrawResponseDto })
 	@ApiNotFoundResponse({ description: 'Raffle not found' })
-	@ApiBadRequestResponse({ description: 'Invalid draw operation' })
-	async draw(
-		@Param('id', ParseIntPipe) id: number,
-		@Body() dto: DrawDto,
-	): Promise<DrawResponseDto> {
-		const raffle = await this.service.draw(id, dto.rank);
-		return this.toDrawResponse(raffle, dto.rank);
+	@ApiBadRequestResponse({ description: 'No prizes available to draw' })
+	async draw(@Param('id', ParseIntPipe) id: number): Promise<DrawResponseDto> {
+		const raffle = await this.service.draw(id);
+		return this.toDrawResponse(raffle);
 	}
 
 	@Post(':id/bonus-prizes')
@@ -186,17 +182,18 @@ export class RaffleController {
 		};
 	}
 
-	private toDrawResponse(raffle: Raffle, rank: number): DrawResponseDto {
-		const prize = raffle.prizes.find((p) => p.rank === rank)!;
-		const prizeWinners = raffle.winners.filter((w) => w.rafflePrizeId === prize.id);
+	private toDrawResponse(raffle: Raffle): DrawResponseDto {
+		const drawnPrizes = raffle.prizes.filter((p) => p.isDrawn);
+		const lastDrawnPrize = drawnPrizes.reduce((a, b) => (a.rank > b.rank ? a : b));
+		const prizeWinners = raffle.winners.filter((w) => w.rafflePrizeId === lastDrawnPrize.id);
 		const participantMap = new Map(raffle.participants.map((p) => [p.id, p]));
 
 		return {
-			rank,
+			rank: lastDrawnPrize.rank,
 			prize: {
-				name: prize.name,
-				prizeLevel: prize.prizeLevel,
-				imageUrl: prize.imageUrl,
+				name: lastDrawnPrize.name,
+				prizeLevel: lastDrawnPrize.prizeLevel,
+				imageUrl: lastDrawnPrize.imageUrl,
 			},
 			winners: prizeWinners.map((w): DrawWinnerDto => {
 				const p = participantMap.get(w.participantId)!;

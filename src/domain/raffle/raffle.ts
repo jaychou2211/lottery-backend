@@ -2,12 +2,9 @@ import type { Employee } from '../employee';
 import { RaffleStatus, DrawnGroup, EmployeeRole } from '../shared';
 import {
 	InvalidStatusTransitionError,
-	PrizeNotFoundError,
-	AlreadyDrawnError,
-	InvalidDrawOrderError,
+	NoPrizeToDrawError,
 	ParticipantAlreadyWonError,
 	InvalidWinnerCountError,
-	PrizeTypeMismatchError,
 	InsufficientEmployeesError,
 	InvalidRaffleStatusError,
 	DuplicateParticipantError,
@@ -30,13 +27,6 @@ export interface RaffleProps {
 
 /**
  * Aggregate Root: Raffle
- *
- * A lottery raffle containing prizes and winner records.
- * Enforces domain invariants:
- * - Sequential drawing: prizes must be drawn in rank order
- * - One prize per employee: each employee can only win once per raffle
- * - Status transitions: DRAFT -> READY -> IN_PROGRESS -> BONUS -> COMPLETED
- * - Grouped drawing: regular prizes draw by seniority, bonus prizes draw from all
  */
 export class Raffle {
 	private constructor(
@@ -208,40 +198,8 @@ export class Raffle {
 		return this.drawablePrizes.find((p) => !p.isDrawn)?.rank ?? null;
 	}
 
-	private getPrizeByRank(rank: number): PersistedPrize | undefined {
+	getPrizeByRank(rank: number): PersistedPrize | undefined {
 		return this.prizes.find((p) => p.rank === rank);
-	}
-
-	private canDrawInCurrentStatus(prize: PersistedPrize): boolean {
-		switch (this.status) {
-			case RaffleStatus.READY:
-			case RaffleStatus.IN_PROGRESS:
-				return !prize.isBonus();
-			case RaffleStatus.BONUS:
-				return prize.isBonus();
-			default:
-				return false;
-		}
-	}
-
-	assertCanDraw(rank: number): void {
-		const prize = this.getPrizeByRank(rank);
-		if (!prize) {
-			throw new PrizeNotFoundError(rank);
-		}
-
-		if (!this.canDrawInCurrentStatus(prize)) {
-			throw new PrizeTypeMismatchError(prize.isBonus(), this.status);
-		}
-
-		if (prize.isDrawn) {
-			throw new AlreadyDrawnError(rank);
-		}
-
-		const nextRank = this.getNextDrawableRank();
-		if (nextRank !== rank) {
-			throw new InvalidDrawOrderError(rank, nextRank);
-		}
 	}
 
 	hasParticipantWon(participantId: number): boolean {
@@ -295,42 +253,28 @@ export class Raffle {
 		return this.status;
 	}
 
-	/**
-	 * Draw winners for a prize using internal participants.
-	 *
-	 * @param rank - The prize rank to draw
-	 * @param lottery - Strategy for selecting winners (defaults to random)
-	 * @returns New Raffle with updated prizes and winners
-	 */
-	draw(rank: number, lottery: LotteryStrategy = randomLottery): Raffle {
-		// 1. Assert drawable (includes status and prize type validation)
-		this.assertCanDraw(rank);
+	draw(lottery: LotteryStrategy = randomLottery): Raffle {
+		const rank = this.getNextDrawableRank();
+		if (rank === null) {
+			throw new NoPrizeToDrawError();
+		}
 
-		// Prize is guaranteed to exist after assertCanDraw
 		const prize = this.getPrizeByRank(rank)!;
-
-		// 2. Get eligible participants (filter out already won)
 		const eligible = this.getEligibleParticipants();
-
-		// 3. Execute lottery to select winners
 		const inputs = lottery(eligible, prize.eligibleCounts);
 
-		// 4. Validate winner counts match prize requirements
 		this.validateWinnerCounts(prize, inputs);
 
-		// 5. Defensive check: lottery must not return already-won participants
 		for (const input of inputs) {
 			if (this.hasParticipantWon(input.participantId)) {
 				throw new ParticipantAlreadyWonError(input.participantId);
 			}
 		}
 
-		// 6. Mark prize as drawn
 		const updatedPrizes = this.prizes.map((p) =>
 			p.rank === rank ? p.markAsDrawn() : p,
 		);
 
-		// 7. Create WinnerRecords (prize.id is guaranteed non-null via PersistedPrize type)
 		const now = new Date();
 		const newWinners = inputs.map((input) =>
 			WinnerRecord.create({
@@ -342,7 +286,6 @@ export class Raffle {
 		);
 		const updatedWinners = [...this.winners, ...newWinners];
 
-		// 8. Compute next status (automatic transitions)
 		const newStatus = this.computeNextStatus(updatedPrizes);
 
 		return new Raffle(this.id, this.name, newStatus, updatedPrizes, this.participants, updatedWinners);
