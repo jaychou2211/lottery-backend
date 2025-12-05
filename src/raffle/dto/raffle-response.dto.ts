@@ -67,3 +67,29 @@ export class RaffleSummaryDto {
 	prizeCount: number;
 	winnerCount: number;
 }
+
+export class DrawWinnerDto {
+	participantId: number;
+	staffNumber: string;
+	name: string;
+	department: string;
+
+	@ApiProperty({ enum: EmployeeRole })
+	role: EmployeeRole;
+
+	@ApiProperty({ enum: DrawnGroup })
+	drawnGroup: DrawnGroup;
+}
+
+export class DrawResponseDto {
+	rank: number;
+	prize: {
+		name: string;
+		prizeLevel: string;
+		imageUrl: string;
+	};
+	winners: DrawWinnerDto[];
+
+	@ApiProperty({ enum: RaffleStatus })
+	status: RaffleStatus;
+}

@@ -9,6 +9,7 @@ import {
 	ParseIntPipe,
 	Post,
 	Patch,
+	Query,
 } from '@nestjs/common';
 import {
 	ApiBadRequestResponse,
@@ -22,9 +23,11 @@ import {
 	AddBonusPrizeDto,
 	CreateRaffleDto,
 	DrawDto,
+	DrawResponseDto,
 	RaffleResponseDto,
 	RaffleSummaryDto,
 	UpdateStatusDto,
+	type DrawWinnerDto,
 	type EligibleCountsResponseDto,
 	type ParticipantResponseDto,
 	type PrizeResponseDto,
@@ -58,9 +61,13 @@ export class RaffleController {
 	@ApiOperation({ summary: 'Get a raffle by ID' })
 	@ApiResponse({ status: 200, type: RaffleResponseDto })
 	@ApiNotFoundResponse({ description: 'Raffle not found' })
-	async findById(@Param('id', ParseIntPipe) id: number): Promise<RaffleResponseDto> {
+	async findById(
+		@Param('id', ParseIntPipe) id: number,
+		@Query('exclude') exclude?: string,
+	): Promise<RaffleResponseDto> {
 		const raffle = await this.service.findById(id);
-		return this.toResponse(raffle);
+		const excludeFields = exclude?.split(',') ?? [];
+		return this.toResponse(raffle, excludeFields);
 	}
 
 	@Delete(':id')
@@ -88,15 +95,15 @@ export class RaffleController {
 	@Post(':id/draw')
 	@HttpCode(HttpStatus.OK)
 	@ApiOperation({ summary: 'Draw winners for a prize' })
-	@ApiResponse({ status: 200, type: RaffleResponseDto })
+	@ApiResponse({ status: 200, type: DrawResponseDto })
 	@ApiNotFoundResponse({ description: 'Raffle not found' })
 	@ApiBadRequestResponse({ description: 'Invalid draw operation' })
 	async draw(
 		@Param('id', ParseIntPipe) id: number,
 		@Body() dto: DrawDto,
-	): Promise<RaffleResponseDto> {
+	): Promise<DrawResponseDto> {
 		const raffle = await this.service.draw(id, dto.rank);
-		return this.toResponse(raffle);
+		return this.toDrawResponse(raffle, dto.rank);
 	}
 
 	@Post(':id/bonus-prizes')
@@ -112,12 +119,12 @@ export class RaffleController {
 		return this.toResponse(raffle);
 	}
 
-	private toResponse(raffle: Raffle): RaffleResponseDto {
+	private toResponse(raffle: Raffle, exclude: string[] = []): RaffleResponseDto {
 		return {
 			id: raffle.id,
 			name: raffle.name,
 			status: raffle.status,
-			participants: raffle.participants.map((p): ParticipantResponseDto => ({
+			participants: exclude.includes('participants') ? [] : raffle.participants.map((p): ParticipantResponseDto => ({
 				id: p.id!,
 				employeeId: p.employeeId,
 				staffNumber: p.staffNumber,
@@ -126,7 +133,7 @@ export class RaffleController {
 				role: p.role,
 				tags: [...p.tags],
 			})),
-			prizes: raffle.prizes.map((p): PrizeResponseDto => ({
+			prizes: exclude.includes('prizes') ? [] : raffle.prizes.map((p): PrizeResponseDto => ({
 				id: p.id,
 				rank: p.rank,
 				name: p.name,
@@ -136,7 +143,7 @@ export class RaffleController {
 				isDrawn: p.isDrawn,
 				prizeTemplateId: p.prizeTemplateId,
 			})),
-			winners: raffle.winners.map((w): WinnerResponseDto => ({
+			winners: exclude.includes('winners') ? [] : raffle.winners.map((w): WinnerResponseDto => ({
 				id: w.id!,
 				rafflePrizeId: w.rafflePrizeId,
 				participantId: w.participantId,
@@ -161,13 +168,39 @@ export class RaffleController {
 		if (ec.isBonus()) {
 			return { kind: 'bonus', total: ec.total };
 		}
-		// Type guard ensures this is RegularEligibleCounts
 		const regular = ec as unknown as { total: number; senior: number; junior: number };
 		return {
 			kind: 'regular',
 			total: regular.total,
 			senior: regular.senior,
 			junior: regular.junior,
+		};
+	}
+
+	private toDrawResponse(raffle: Raffle, rank: number): DrawResponseDto {
+		const prize = raffle.prizes.find((p) => p.rank === rank)!;
+		const prizeWinners = raffle.winners.filter((w) => w.rafflePrizeId === prize.id);
+		const participantMap = new Map(raffle.participants.map((p) => [p.id, p]));
+
+		return {
+			rank,
+			prize: {
+				name: prize.name,
+				prizeLevel: prize.prizeLevel,
+				imageUrl: prize.imageUrl,
+			},
+			winners: prizeWinners.map((w): DrawWinnerDto => {
+				const p = participantMap.get(w.participantId)!;
+				return {
+					participantId: w.participantId,
+					staffNumber: p.staffNumber,
+					name: p.name,
+					department: p.department,
+					role: p.role,
+					drawnGroup: w.drawnGroup,
+				};
+			}),
+			status: raffle.status,
 		};
 	}
 }

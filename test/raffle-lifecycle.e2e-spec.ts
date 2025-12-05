@@ -123,20 +123,15 @@ describe('Raffle Lifecycle (e2e)', () => {
 
 		expect(response.status).toBe(200);
 		expect(response.body.status).toBe('IN_PROGRESS');
-
-		// Prize 1 (特獎) should be marked as drawn
-		const prize1 = response.body.prizes.find((p: { rank: number }) => p.rank === 1);
-		expect(prize1.isDrawn).toBe(true);
+		expect(response.body.rank).toBe(1);
+		expect(response.body.prize.name).toBe('iPhone 16 Pro Max');
 
 		// Should have 2 winners (senior: 1, junior: 1)
-		const prize1Winners = response.body.winners.filter(
-			(w: { rafflePrizeId: number }) => w.rafflePrizeId === prize1.id,
-		);
-		expect(prize1Winners.length).toBe(2);
+		expect(response.body.winners.length).toBe(2);
 
 		// Verify drawn groups
-		const seniorWinners = prize1Winners.filter((w: { drawnGroup: string }) => w.drawnGroup === 'SENIOR');
-		const juniorWinners = prize1Winners.filter((w: { drawnGroup: string }) => w.drawnGroup === 'JUNIOR');
+		const seniorWinners = response.body.winners.filter((w: { drawnGroup: string }) => w.drawnGroup === 'SENIOR');
+		const juniorWinners = response.body.winners.filter((w: { drawnGroup: string }) => w.drawnGroup === 'JUNIOR');
 		expect(seniorWinners.length).toBe(1);
 		expect(juniorWinners.length).toBe(1);
 	});
@@ -157,19 +152,10 @@ describe('Raffle Lifecycle (e2e)', () => {
 
 		expect(response.status).toBe(200);
 		expect(response.body.status).toBe('IN_PROGRESS');
-
-		// Prize 2 (頭獎) should be marked as drawn
-		const prize2 = response.body.prizes.find((p: { rank: number }) => p.rank === 2);
-		expect(prize2.isDrawn).toBe(true);
+		expect(response.body.rank).toBe(2);
 
 		// Should have 2 winners (senior: 1, junior: 1)
-		const prize2Winners = response.body.winners.filter(
-			(w: { rafflePrizeId: number }) => w.rafflePrizeId === prize2.id,
-		);
-		expect(prize2Winners.length).toBe(2);
-
-		// Total winners now: 2 + 2 = 4
-		expect(response.body.winners.length).toBe(4);
+		expect(response.body.winners.length).toBe(2);
 	});
 
 	// =========================================================
@@ -177,33 +163,21 @@ describe('Raffle Lifecycle (e2e)', () => {
 	// =========================================================
 
 	it('should draw remaining regular prizes (rank 3-5)', async () => {
-		let totalWinners = 4; // Already have 4 winners from previous draws (2 + 2)
-
-		// Draw prizes 3 through 5
 		for (let rank = 3; rank <= 5; rank++) {
 			const response = await request(app.getHttpServer())
 				.post(`/raffles/${raffleId}/draw`)
 				.send({ rank });
 
 			expect(response.status).toBe(200);
+			expect(response.body.rank).toBe(rank);
+			expect(response.body.winners.length).toBe(2);
 
-			const drawnPrize = response.body.prizes.find((p: { rank: number }) => p.rank === rank);
-			expect(drawnPrize.isDrawn).toBe(true);
-
-			// Winners should increase
-			expect(response.body.winners.length).toBeGreaterThan(totalWinners);
-			totalWinners = response.body.winners.length;
-
-			// After rank 5 (last regular prize), should be in BONUS status
 			if (rank === 5) {
 				expect(response.body.status).toBe('BONUS');
 			} else {
 				expect(response.body.status).toBe('IN_PROGRESS');
 			}
 		}
-
-		// Final winner count after all regular prizes: 5 prizes × 2 winners each = 10
-		expect(totalWinners).toBe(10);
 	});
 
 	// =========================================================
