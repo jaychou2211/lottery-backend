@@ -15,9 +15,16 @@ export { DrawnGroup } from './drawn-group';
 // ============================================================
 export { RegularEligibleCounts, BonusEligibleCounts } from './eligible-counts';
 export type { EligibleCounts } from './eligible-counts';
+export { PrizeRank } from './prize-rank';
 
 // ============================================================
 // Errors
 // ============================================================
 export { InvalidTotalError, TotalMismatchError } from './eligible-counts';
 export type { EligibleCountsError } from './eligible-counts';
+export {
+	InvalidPrizeRankFormatError,
+	InvalidPrizeSequenceError,
+	NonConsecutiveSequenceError,
+} from './prize-rank';
+export type { PrizeRankError } from './prize-rank';
