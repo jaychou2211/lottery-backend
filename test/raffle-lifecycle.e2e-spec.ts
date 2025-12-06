@@ -63,27 +63,34 @@ describe('Raffle Lifecycle (e2e)', () => {
 	// =========================================================
 
 	it('should create a new raffle in DRAFT status with auto-associated employees and prizes', async () => {
-		const response = await request(app.getHttpServer())
+		// Create raffle - returns just { id }
+		const createResponse = await request(app.getHttpServer())
 			.post('/raffles')
 			.send({ name: '2024 年末尾牙抽獎' });
 
-		expect(response.status).toBe(201);
-		expect(response.body.name).toBe('2024 年末尾牙抽獎');
-		expect(response.body.status).toBe('DRAFT');
+		expect(createResponse.status).toBe(201);
+		expect(createResponse.body.id).toBeDefined();
+		raffleId = createResponse.body.id;
 
-		expect(response.body.participants.length).toBe(employeeCount);
-		expect(response.body.prizes.length).toBe(prizeCount);
-		expect(response.body.winners).toEqual([]);
+		// Get full detail
+		const detailResponse = await request(app.getHttpServer())
+			.get(`/raffles/${raffleId}`);
 
-		response.body.participants.forEach((p: { tags: string[] }) => {
+		expect(detailResponse.status).toBe(200);
+		expect(detailResponse.body.name).toBe('2024 年末尾牙抽獎');
+		expect(detailResponse.body.status).toBe('DRAFT');
+
+		expect(detailResponse.body.participants.length).toBe(employeeCount);
+		expect(detailResponse.body.prizes.length).toBe(prizeCount);
+		expect(detailResponse.body.winners).toEqual([]);
+
+		detailResponse.body.participants.forEach((p: { tags: string[] }) => {
 			expect(p.tags).toEqual([]);
 		});
 
-		response.body.prizes.forEach((p: { isDrawn: boolean }) => {
+		detailResponse.body.prizes.forEach((p: { isDrawn: boolean }) => {
 			expect(p.isDrawn).toBe(false);
 		});
-
-		raffleId = response.body.id;
 	});
 
 	// =========================================================
@@ -95,8 +102,13 @@ describe('Raffle Lifecycle (e2e)', () => {
 			.patch(`/raffles/${raffleId}/status`)
 			.send({ status: 'READY' });
 
-		expect(response.status).toBe(200);
-		expect(response.body.status).toBe('READY');
+		expect(response.status).toBe(204);
+
+		// Verify status via GET
+		const detailResponse = await request(app.getHttpServer())
+			.get(`/raffles/${raffleId}`);
+
+		expect(detailResponse.body.status).toBe('READY');
 	});
 
 	// =========================================================
@@ -108,9 +120,20 @@ describe('Raffle Lifecycle (e2e)', () => {
 			.post(`/raffles/${raffleId}/draw`);
 
 		expect(response.status).toBe(200);
-		expect(response.body.status).toBe('IN_PROGRESS');
-		expect(response.body.rank).toBe('1-1');
+		// DrawResultDto shape: winners[], prize, drawnAt
+		expect(response.body.winners).toBeDefined();
+		expect(Array.isArray(response.body.winners)).toBe(true);
 		expect(response.body.winners.length).toBeGreaterThan(0);
+		expect(response.body.prize).toBeDefined();
+		expect(response.body.prize.rank).toBe('1-1');
+		// Each winner should have drawnGroup
+		expect(response.body.winners[0].drawnGroup).toBeDefined();
+
+		// Verify status via GET
+		const detailResponse = await request(app.getHttpServer())
+			.get(`/raffles/${raffleId}`);
+
+		expect(detailResponse.body.status).toBe('IN_PROGRESS');
 	});
 
 	// =========================================================
@@ -126,9 +149,13 @@ describe('Raffle Lifecycle (e2e)', () => {
 				.post(`/raffles/${raffleId}/draw`);
 
 			expect(response.status).toBe(200);
-
-			currentStatus = response.body.status;
 			drawCount++;
+
+			// Check status via GET
+			const detailResponse = await request(app.getHttpServer())
+				.get(`/raffles/${raffleId}`);
+
+			currentStatus = detailResponse.body.status;
 		}
 
 		expect(currentStatus).toBe('BONUS');
@@ -143,8 +170,13 @@ describe('Raffle Lifecycle (e2e)', () => {
 			.patch(`/raffles/${raffleId}/status`)
 			.send({ status: 'COMPLETED' });
 
-		expect(response.status).toBe(200);
-		expect(response.body.status).toBe('COMPLETED');
+		expect(response.status).toBe(204);
+
+		// Verify status via GET
+		const detailResponse = await request(app.getHttpServer())
+			.get(`/raffles/${raffleId}`);
+
+		expect(detailResponse.body.status).toBe('COMPLETED');
 	});
 
 	it('should reject any further operations on completed raffle', async () => {

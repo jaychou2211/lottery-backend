@@ -1,7 +1,8 @@
 import { faker } from '@faker-js/faker';
+
 import type { Employee } from '../employee';
-import { Raffle, RafflePrize, RaffleParticipant, WinnerRecord } from '../raffle';
-import type { LotteryStrategy, WinnerInput, PersistedPrize, PersistedBonusPrize, PersistedParticipant } from '../raffle';
+import { Raffle, Prize, EligibilityPool } from '../raffle';
+import type { LotteryStrategy, WinnerInput, PersistedPrize, PersistedBonusPrize, ParticipantEligibility } from '../raffle';
 import { RegularEligibleCounts, BonusEligibleCounts, RaffleStatus, EmployeeRole, DrawnGroup, PrizeRank } from '../shared';
 import type { EligibleCounts } from '../shared';
 
@@ -20,14 +21,14 @@ export function fakeEmployee(overrides: Partial<Employee> = {}): Employee {
 }
 
 /**
- * Factory for creating test RafflePrize objects (persisted).
+ * Factory for creating test Prize objects (persisted).
  *
- * @see {@link RafflePrize}
+ * @see {@link Prize}
  */
 export function fakePrize(
-	overrides: Partial<Omit<Parameters<typeof RafflePrize.create>[0], 'rank'>> & { rank?: PrizeRank } = {},
+	overrides: Partial<Omit<Parameters<typeof Prize.create>[0], 'rank'>> & { rank?: PrizeRank } = {},
 ): PersistedPrize {
-	return RafflePrize.create({
+	return Prize.create({
 		id: faker.number.int({ min: 1 }),
 		rank: overrides.rank ?? PrizeRank.create(
 			faker.number.int({ min: 1, max: 5 }),
@@ -44,12 +45,12 @@ export function fakePrize(
  * Factory for creating test bonus prize (persisted).
  */
 export function fakeBonusPrize(
-	overrides: Partial<Omit<Parameters<typeof RafflePrize.create>[0], 'eligibleCounts' | 'rank'>> & {
+	overrides: Partial<Omit<Parameters<typeof Prize.create>[0], 'eligibleCounts' | 'rank'>> & {
 		eligibleCounts?: BonusEligibleCounts;
 		rank?: PrizeRank;
 	} = {},
 ): PersistedBonusPrize {
-	return RafflePrize.create({
+	return Prize.create({
 		id: faker.number.int({ min: 1 }),
 		rank: overrides.rank ?? PrizeRank.create(5, faker.number.int({ min: 1, max: 10 })),
 		name: faker.commerce.productName(),
@@ -60,20 +61,26 @@ export function fakeBonusPrize(
 }
 
 /**
- * Factory for creating test WinnerRecord objects.
- *
- * @see {@link WinnerRecord}
+ * Factory for creating test ParticipantEligibility objects.
  */
-export function fakeWinnerRecord(
-	overrides: Partial<Parameters<typeof WinnerRecord.create>[0]> = {},
-): WinnerRecord {
-	return WinnerRecord.create({
-		rafflePrizeId: faker.number.int(),
-		participantId: faker.number.int(),
-		drawnGroup: faker.helpers.enumValue(DrawnGroup),
-		createdAt: faker.date.recent(),
+export function fakeParticipantEligibility(
+	overrides: Partial<ParticipantEligibility> = {},
+): ParticipantEligibility {
+	return {
+		id: faker.number.int({ min: 1 }),
+		role: faker.helpers.enumValue(EmployeeRole),
 		...overrides,
-	});
+	};
+}
+
+/**
+ * Factory for creating test EligibilityPool objects.
+ */
+export function fakeEligibilityPool(
+	participants: ParticipantEligibility[] = [],
+	wonIds: Set<number> = new Set(),
+): EligibilityPool {
+	return EligibilityPool.create(participants, wonIds);
 }
 
 /**
@@ -87,6 +94,9 @@ export function fakeRaffle(
 	return Raffle.create({
 		id: faker.number.int(),
 		name: faker.company.name(),
+		version: 1,
+		status: RaffleStatus.DRAFT,
+		eligibilityPool: overrides.eligibilityPool ?? fakeEligibilityPool(),
 		prizes: [],
 		...overrides,
 	});
@@ -102,24 +112,6 @@ export function fakeRaffle(
  */
 export function fixedLottery(inputs: WinnerInput[]): LotteryStrategy {
 	return () => inputs;
-}
-
-/**
- * Factory for creating test RaffleParticipant objects with ID (simulates persisted state).
- *
- * @see {@link RaffleParticipant}
- */
-export function fakeParticipant(
-	overrides: { id: number; employeeId: number; role: EmployeeRole } & Partial<
-		Omit<Parameters<typeof RaffleParticipant.create>[0], 'id' | 'employeeId' | 'role'>
-	>,
-): PersistedParticipant {
-	return RaffleParticipant.create({
-		staffNumber: `EMP${overrides.employeeId}`,
-		name: `Employee ${overrides.employeeId}`,
-		department: 'Test',
-		...overrides,
-	}) as PersistedParticipant;
 }
 
 /**

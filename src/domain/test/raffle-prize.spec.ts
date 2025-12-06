@@ -1,12 +1,12 @@
 /**
- * RafflePrize entity tests.
+ * Prize entity tests.
  *
- * @see {@link RafflePrize}
+ * @see {@link Prize}
  */
-import { EmptyPrizeNameError, RafflePrize } from '../raffle';
-import { fakePrize, fakeBonusPrize, RegularEligibleCounts, BonusEligibleCounts, PrizeRank } from './factories';
+import { EmptyPrizeNameError, Prize } from '../raffle';
+import { fakePrize, RegularEligibleCounts, PrizeRank } from './factories';
 
-describe('RafflePrize', () => {
+describe('Prize', () => {
 	describe('creation', () => {
 		it('should create with isDrawn defaulting to false', () => {
 			const prize = fakePrize();
@@ -15,7 +15,7 @@ describe('RafflePrize', () => {
 		});
 
 		it('should create with id defaulting to null when not provided', () => {
-			const prize = RafflePrize.create({
+			const prize = Prize.create({
 				rank: PrizeRank.create(1, 1),
 				name: 'Test',
 				eligibleCounts: RegularEligibleCounts.create(2, 1),
@@ -83,39 +83,6 @@ describe('RafflePrize', () => {
 		});
 	});
 
-	describe('isBonus', () => {
-		it('should return false for regular prize', () => {
-			const prize = fakePrize({
-				eligibleCounts: RegularEligibleCounts.create(4, 2),
-			});
-
-			expect(prize.isBonus()).toBe(false);
-		});
-
-		it('should return true for bonus prize', () => {
-			const prize = fakeBonusPrize({
-				eligibleCounts: BonusEligibleCounts.create(5),
-			});
-
-			expect(prize.isBonus()).toBe(true);
-		});
-	});
-
-	describe('isRegular', () => {
-		it('should return true for regular prize', () => {
-			const prize = fakePrize({
-				eligibleCounts: RegularEligibleCounts.create(4, 2),
-			});
-
-			expect(prize.isRegular()).toBe(true);
-		});
-
-		it('should return false for bonus prize', () => {
-			const prize = fakeBonusPrize({
-				eligibleCounts: BonusEligibleCounts.create(5),
-			});
-
-			expect(prize.isRegular()).toBe(false);
-		});
-	});
+	// Note: isBonus() and isRegular() are pure delegates to EligibleCounts.
+	// See eligible-counts.spec.ts for comprehensive tests.
 });

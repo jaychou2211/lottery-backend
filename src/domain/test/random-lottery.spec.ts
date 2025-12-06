@@ -3,87 +3,210 @@
  *
  * @see {@link randomLottery}
  */
-import { randomLottery } from '../raffle';
-import { fakeParticipant, RegularEligibleCounts, BonusEligibleCounts, EmployeeRole, DrawnGroup } from './factories';
+import { randomLottery, EligibilityPool } from '../raffle';
+import { RegularEligibleCounts, BonusEligibleCounts, EmployeeRole, DrawnGroup } from './factories';
 
 describe('randomLottery', () => {
 	describe('regular prizes (grouped drawing)', () => {
-		it('should draw correct number of seniors and juniors', () => {
-			const candidates = [
-				fakeParticipant({ id: 1, employeeId: 100, role: EmployeeRole.SENIOR }),
-				fakeParticipant({ id: 2, employeeId: 200, role: EmployeeRole.SENIOR }),
-				fakeParticipant({ id: 3, employeeId: 300, role: EmployeeRole.JUNIOR }),
-				fakeParticipant({ id: 4, employeeId: 400, role: EmployeeRole.JUNIOR }),
-			];
-			const eligibleCounts = RegularEligibleCounts.create(2, 1);
+		it('should draw exact number of seniors and juniors as specified', () => {
+			const seniorIds = [1, 2, 3];
+			const juniorIds = [4, 5, 6];
+			const pool = EligibilityPool.create([
+				...seniorIds.map((id) => ({ id, role: EmployeeRole.SENIOR })),
+				...juniorIds.map((id) => ({ id, role: EmployeeRole.JUNIOR })),
+			]);
 
-			const result = randomLottery(candidates, eligibleCounts);
+			const requiredSeniors = 2;
+			const requiredJuniors = 1;
+			const eligibleCounts = RegularEligibleCounts.create(requiredSeniors, requiredJuniors);
 
-			const seniors = result.filter((w) => w.drawnGroup === DrawnGroup.SENIOR);
-			const juniors = result.filter((w) => w.drawnGroup === DrawnGroup.JUNIOR);
-
-			expect(seniors).toHaveLength(2);
-			expect(juniors).toHaveLength(1);
-		});
-
-		it('should only select from correct role pools', () => {
-			const seniorParticipants = [
-				fakeParticipant({ id: 1, employeeId: 100, role: EmployeeRole.SENIOR }),
-				fakeParticipant({ id: 2, employeeId: 200, role: EmployeeRole.SENIOR }),
-			];
-			const juniorParticipants = [
-				fakeParticipant({ id: 3, employeeId: 300, role: EmployeeRole.JUNIOR }),
-				fakeParticipant({ id: 4, employeeId: 400, role: EmployeeRole.JUNIOR }),
-			];
-			const candidates = [...seniorParticipants, ...juniorParticipants];
-			const eligibleCounts = RegularEligibleCounts.create(1, 1);
-
-			const result = randomLottery(candidates, eligibleCounts);
+			const result = randomLottery(pool, eligibleCounts);
 
 			const seniorWinners = result.filter((w) => w.drawnGroup === DrawnGroup.SENIOR);
 			const juniorWinners = result.filter((w) => w.drawnGroup === DrawnGroup.JUNIOR);
 
-			// Senior winners should have participantId 1 or 2
-			expect(seniorWinners.every((w) => [1, 2].includes(w.participantId))).toBe(true);
-			// Junior winners should have participantId 3 or 4
-			expect(juniorWinners.every((w) => [3, 4].includes(w.participantId))).toBe(true);
+			expect(seniorWinners).toHaveLength(requiredSeniors);
+			expect(juniorWinners).toHaveLength(requiredJuniors);
+		});
+
+		it('should only select seniors from senior pool and juniors from junior pool', () => {
+			const seniorIds = [1, 2];
+			const juniorIds = [3, 4];
+			const pool = EligibilityPool.create([
+				...seniorIds.map((id) => ({ id, role: EmployeeRole.SENIOR })),
+				...juniorIds.map((id) => ({ id, role: EmployeeRole.JUNIOR })),
+			]);
+			const eligibleCounts = RegularEligibleCounts.create(1, 1);
+
+			const result = randomLottery(pool, eligibleCounts);
+
+			const seniorWinners = result.filter((w) => w.drawnGroup === DrawnGroup.SENIOR);
+			const juniorWinners = result.filter((w) => w.drawnGroup === DrawnGroup.JUNIOR);
+
+			expect(seniorWinners.every((w) => seniorIds.includes(w.participantId))).toBe(true);
+			expect(juniorWinners.every((w) => juniorIds.includes(w.participantId))).toBe(true);
+		});
+
+		it('should handle zero senior requirement (juniors only)', () => {
+			const seniorIds = [1, 2];
+			const juniorIds = [3, 4, 5];
+			const pool = EligibilityPool.create([
+				...seniorIds.map((id) => ({ id, role: EmployeeRole.SENIOR })),
+				...juniorIds.map((id) => ({ id, role: EmployeeRole.JUNIOR })),
+			]);
+
+			const requiredSeniors = 0;
+			const requiredJuniors = 2;
+			const eligibleCounts = RegularEligibleCounts.create(requiredSeniors, requiredJuniors);
+
+			const result = randomLottery(pool, eligibleCounts);
+
+			const seniorWinners = result.filter((w) => w.drawnGroup === DrawnGroup.SENIOR);
+			const juniorWinners = result.filter((w) => w.drawnGroup === DrawnGroup.JUNIOR);
+
+			expect(seniorWinners).toHaveLength(requiredSeniors);
+			expect(juniorWinners).toHaveLength(requiredJuniors);
+			expect(juniorWinners.every((w) => juniorIds.includes(w.participantId))).toBe(true);
+		});
+
+		it('should handle zero junior requirement (seniors only)', () => {
+			const seniorIds = [1, 2, 3];
+			const juniorIds = [4, 5];
+			const pool = EligibilityPool.create([
+				...seniorIds.map((id) => ({ id, role: EmployeeRole.SENIOR })),
+				...juniorIds.map((id) => ({ id, role: EmployeeRole.JUNIOR })),
+			]);
+
+			const requiredSeniors = 2;
+			const requiredJuniors = 0;
+			const eligibleCounts = RegularEligibleCounts.create(requiredSeniors, requiredJuniors);
+
+			const result = randomLottery(pool, eligibleCounts);
+
+			const seniorWinners = result.filter((w) => w.drawnGroup === DrawnGroup.SENIOR);
+			const juniorWinners = result.filter((w) => w.drawnGroup === DrawnGroup.JUNIOR);
+
+			expect(seniorWinners).toHaveLength(requiredSeniors);
+			expect(juniorWinners).toHaveLength(requiredJuniors);
+			expect(seniorWinners.every((w) => seniorIds.includes(w.participantId))).toBe(true);
+		});
+
+		it('should handle drawing all available participants (exact match)', () => {
+			const seniorIds = [1, 2];
+			const juniorIds = [3];
+			const pool = EligibilityPool.create([
+				...seniorIds.map((id) => ({ id, role: EmployeeRole.SENIOR })),
+				...juniorIds.map((id) => ({ id, role: EmployeeRole.JUNIOR })),
+			]);
+
+			const requiredSeniors = seniorIds.length;
+			const requiredJuniors = juniorIds.length;
+			const eligibleCounts = RegularEligibleCounts.create(requiredSeniors, requiredJuniors);
+
+			const result = randomLottery(pool, eligibleCounts);
+
+			const winnerIds = result.map((w) => w.participantId).sort();
+			const allIds = [...seniorIds, ...juniorIds].sort();
+
+			expect(winnerIds).toEqual(allIds);
 		});
 	});
 
 	describe('bonus prizes (all pool drawing)', () => {
 		it('should draw from all candidates regardless of role', () => {
-			const candidates = [
-				fakeParticipant({ id: 1, employeeId: 100, role: EmployeeRole.SENIOR }),
-				fakeParticipant({ id: 2, employeeId: 200, role: EmployeeRole.JUNIOR }),
-				fakeParticipant({ id: 3, employeeId: 300, role: EmployeeRole.SENIOR }),
-			];
-			const eligibleCounts = BonusEligibleCounts.create(2);
+			const allIds = [1, 2, 3, 4, 5];
+			const pool = EligibilityPool.create([
+				{ id: 1, role: EmployeeRole.SENIOR },
+				{ id: 2, role: EmployeeRole.JUNIOR },
+				{ id: 3, role: EmployeeRole.SENIOR },
+				{ id: 4, role: EmployeeRole.JUNIOR },
+				{ id: 5, role: EmployeeRole.SENIOR },
+			]);
 
-			const result = randomLottery(candidates, eligibleCounts);
+			const requiredTotal = 3;
+			const eligibleCounts = BonusEligibleCounts.create(requiredTotal);
 
-			expect(result).toHaveLength(2);
+			const result = randomLottery(pool, eligibleCounts);
+
+			expect(result).toHaveLength(requiredTotal);
 			expect(result.every((w) => w.drawnGroup === DrawnGroup.ALL)).toBe(true);
+			expect(result.every((w) => allIds.includes(w.participantId))).toBe(true);
+		});
+
+		it('should handle drawing all remaining participants for bonus', () => {
+			const allIds = [1, 2, 3];
+			const pool = EligibilityPool.create(
+				allIds.map((id) => ({ id, role: EmployeeRole.SENIOR })),
+			);
+
+			const requiredTotal = allIds.length;
+			const eligibleCounts = BonusEligibleCounts.create(requiredTotal);
+
+			const result = randomLottery(pool, eligibleCounts);
+
+			const winnerIds = result.map((w) => w.participantId).sort();
+			expect(winnerIds).toEqual(allIds.sort());
 		});
 	});
 
-	describe('randomness', () => {
-		it('should not always return the same order (statistical test)', () => {
-			const candidates = Array.from({ length: 10 }, (_, i) =>
-				fakeParticipant({ id: i + 1, employeeId: (i + 1) * 100, role: EmployeeRole.SENIOR }),
+	describe('wonIds exclusion', () => {
+		it('should exclude already-won participants from selection', () => {
+			const eligibleIds = [1, 2];
+			const alreadyWonIds = [3, 4];
+			const pool = EligibilityPool.create(
+				[...eligibleIds, ...alreadyWonIds].map((id) => ({ id, role: EmployeeRole.SENIOR })),
+				new Set(alreadyWonIds),
 			);
-			const eligibleCounts = RegularEligibleCounts.create(5, 0);
 
-			// Run multiple times and check that results vary
-			const results = new Set<string>();
-			for (let i = 0; i < 20; i++) {
-				const winners = randomLottery(candidates, eligibleCounts);
-				const key = winners.map((w) => w.participantId).join(',');
-				results.add(key);
+			const eligibleCounts = RegularEligibleCounts.create(2, 0);
+
+			const result = randomLottery(pool, eligibleCounts);
+
+			const winnerIds = result.map((w) => w.participantId);
+			expect(winnerIds).toEqual(expect.arrayContaining(eligibleIds));
+			alreadyWonIds.forEach((wonId) => {
+				expect(winnerIds).not.toContain(wonId);
+			});
+		});
+
+		it('should exclude won participants in bonus drawing', () => {
+			const eligibleIds = [1, 2];
+			const alreadyWonId = 3;
+			const pool = EligibilityPool.create(
+				[...eligibleIds, alreadyWonId].map((id) => ({ id, role: EmployeeRole.SENIOR })),
+				new Set([alreadyWonId]),
+			);
+
+			const eligibleCounts = BonusEligibleCounts.create(2);
+
+			const result = randomLottery(pool, eligibleCounts);
+
+			const winnerIds = result.map((w) => w.participantId);
+			expect(winnerIds).toEqual(expect.arrayContaining(eligibleIds));
+			expect(winnerIds).not.toContain(alreadyWonId);
+		});
+	});
+
+	describe('randomness verification', () => {
+		it('should produce varied results across multiple runs', () => {
+			const candidateCount = 10;
+			const selectCount = 5;
+			const pool = EligibilityPool.create(
+				Array.from({ length: candidateCount }, (_, i) => ({ id: i + 1, role: EmployeeRole.SENIOR })),
+			);
+			const eligibleCounts = RegularEligibleCounts.create(selectCount, 0);
+
+			const uniqueResults = new Set<string>();
+			const iterations = 20;
+
+			for (let i = 0; i < iterations; i++) {
+				const winners = randomLottery(pool, eligibleCounts);
+				const resultKey = winners.map((w) => w.participantId).sort().join(',');
+				uniqueResults.add(resultKey);
 			}
 
-			// With 10 candidates choosing 5, there should be variation
-			// (This test could theoretically fail but probability is negligible)
-			expect(results.size).toBeGreaterThan(1);
+			// With C(10,5)=252 combinations, getting duplicates in 20 runs is unlikely
+			expect(uniqueResults.size).toBeGreaterThan(1);
 		});
 	});
 });
