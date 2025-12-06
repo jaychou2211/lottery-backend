@@ -1,110 +1,238 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 import { RaffleStatus, EmployeeRole, DrawnGroup } from '../../domain/shared';
 
-export class ParticipantResponseDto {
+// ============================================================
+// Raffle List
+// ============================================================
+
+export class RaffleListItemResponseDto {
+	@ApiProperty({ example: 1 })
 	id: number;
-	employeeId: number;
-	staffNumber: string;
+
+	@ApiProperty({ example: '2024 Year-End Raffle' })
 	name: string;
+
+	@ApiProperty({ enum: RaffleStatus, example: RaffleStatus.DRAFT })
+	status: RaffleStatus;
+
+	@ApiProperty({ example: 150 })
+	participantCount: number;
+
+	@ApiProperty({ example: 10 })
+	prizeCount: number;
+
+	@ApiProperty({ example: 5 })
+	winnerCount: number;
+}
+
+// ============================================================
+// Raffle Detail
+// ============================================================
+
+export class ParticipantResponseDto {
+	@ApiProperty({ example: 1 })
+	id: number;
+
+	@ApiProperty({ example: 42 })
+	employeeId: number;
+
+	@ApiProperty({ example: 'EMP001' })
+	staffNumber: string;
+
+	@ApiProperty({ example: 'John Doe' })
+	name: string;
+
+	@ApiProperty({ example: 'Engineering' })
 	department: string;
 
-	@ApiProperty({ enum: EmployeeRole })
+	@ApiProperty({ enum: EmployeeRole, example: EmployeeRole.SENIOR })
 	role: EmployeeRole;
 
+	@ApiProperty({ type: [String], example: ['team-lead', 'remote'] })
 	tags: string[];
 }
 
 export class EligibleCountsResponseDto {
+	@ApiProperty({ enum: ['regular', 'bonus'], example: 'regular' })
 	kind: 'regular' | 'bonus';
+
+	@ApiProperty({ example: 3 })
 	total: number;
+
+	@ApiPropertyOptional({ example: 2 })
 	senior?: number;
+
+	@ApiPropertyOptional({ example: 1 })
 	junior?: number;
 }
 
 export class PrizeResponseDto {
+	@ApiProperty({ example: 1 })
 	id: number;
-	/** Prize rank in format "{level}-{sequence}" */
+
+	@ApiProperty({ description: 'Prize rank in format "{level}-{sequence}"', example: '1-1' })
 	rank: string;
+
+	@ApiProperty({ example: 'iPhone 15 Pro' })
 	name: string;
-	/** Prize level display name (derived from rank) */
+
+	@ApiProperty({ description: 'Prize level display name (derived from rank)', example: '特獎' })
 	prizeLevel: string;
+
+	@ApiProperty({ example: 'https://example.com/iphone.jpg' })
 	imageUrl: string;
+
+	@ApiProperty({ type: EligibleCountsResponseDto })
 	eligibleCounts: EligibleCountsResponseDto;
+
+	@ApiProperty({ example: false })
 	isDrawn: boolean;
+
+	@ApiPropertyOptional({ example: 1, nullable: true })
 	prizeTemplateId: number | null;
 }
 
 export class WinnerResponseDto {
+	@ApiProperty({ example: 1 })
 	id: number;
+
+	@ApiProperty({ example: 1 })
 	rafflePrizeId: number;
+
+	@ApiProperty({ example: 42 })
 	participantId: number;
 
-	@ApiProperty({ enum: DrawnGroup })
+	@ApiProperty({ enum: DrawnGroup, example: DrawnGroup.SENIOR })
 	drawnGroup: DrawnGroup;
 
+	@ApiProperty({ example: '2024-12-06T10:30:00.000Z' })
 	createdAt: string;
 }
 
-export class RaffleResponseDto {
+export class RaffleDetailResponseDto {
+	@ApiProperty({ example: 1 })
 	id: number;
+
+	@ApiProperty({ example: '2024 Year-End Raffle' })
 	name: string;
 
-	@ApiProperty({ enum: RaffleStatus })
+	@ApiProperty({ enum: RaffleStatus, example: RaffleStatus.IN_PROGRESS })
 	status: RaffleStatus;
 
-	participants: ParticipantResponseDto[];
-	prizes: PrizeResponseDto[];
-	winners: WinnerResponseDto[];
+	@ApiPropertyOptional({ type: [ParticipantResponseDto] })
+	participants?: ParticipantResponseDto[];
+
+	@ApiPropertyOptional({ type: [PrizeResponseDto] })
+	prizes?: PrizeResponseDto[];
+
+	@ApiPropertyOptional({ type: [WinnerResponseDto] })
+	winners?: WinnerResponseDto[];
 }
 
-export class RaffleSummaryDto {
-	id: number;
-	name: string;
+// ============================================================
+// Draw Result
+// ============================================================
 
-	@ApiProperty({ enum: RaffleStatus })
-	status: RaffleStatus;
-
-	participantCount: number;
-	prizeCount: number;
-	winnerCount: number;
-}
-
-export class DrawWinnerDto {
+export class DrawResultWinnerResponseDto {
+	@ApiProperty({ example: 42 })
 	participantId: number;
+
+	@ApiProperty({ example: 'EMP001' })
 	staffNumber: string;
+
+	@ApiProperty({ example: 'John Doe' })
 	name: string;
+
+	@ApiProperty({ example: 'Engineering' })
 	department: string;
 
-	@ApiProperty({ enum: EmployeeRole })
+	@ApiProperty({ enum: EmployeeRole, example: EmployeeRole.SENIOR })
 	role: EmployeeRole;
 
-	@ApiProperty({ enum: DrawnGroup })
+	@ApiProperty({ enum: DrawnGroup, example: DrawnGroup.SENIOR })
 	drawnGroup: DrawnGroup;
 }
 
-export class DrawResponseDto {
-	/** Prize rank in format "{level}-{sequence}" */
-	rank: string;
-	prize: {
-		name: string;
-		/** Prize level display name (derived from rank) */
-		prizeLevel: string;
-		imageUrl: string;
-	};
-	winners: DrawWinnerDto[];
+export class DrawResultPrizeResponseDto {
+	@ApiProperty({ example: 1 })
+	id: number;
 
-	@ApiProperty({ enum: RaffleStatus })
-	status: RaffleStatus;
+	@ApiProperty({ example: 'iPhone 15 Pro' })
+	name: string;
+
+	@ApiProperty({ description: 'Prize rank in format "{level}-{sequence}"', example: '1-1' })
+	rank: string;
+
+	@ApiProperty({ description: 'Prize level display name', example: '特獎' })
+	prizeLevel: string;
+
+	@ApiProperty({ example: 'https://example.com/iphone.jpg' })
+	imageUrl: string;
 }
 
-export class BonusPrizeResponseDto {
+export class DrawResultResponseDto {
+	@ApiProperty({ type: [DrawResultWinnerResponseDto] })
+	winners: DrawResultWinnerResponseDto[];
+
+	@ApiProperty({ type: DrawResultPrizeResponseDto })
+	prize: DrawResultPrizeResponseDto;
+
+	@ApiProperty({ example: '2024-12-06T10:30:00.000Z' })
+	drawnAt: string;
+}
+
+// ============================================================
+// Participant Status
+// ============================================================
+
+export class ParticipantInfoResponseDto {
+	@ApiProperty({ example: 42 })
 	id: number;
-	/** Prize rank in format "{level}-{sequence}" */
-	rank: string;
+
+	@ApiProperty({ example: 'EMP001' })
+	staffNumber: string;
+
+	@ApiProperty({ example: 'John Doe' })
 	name: string;
-	/** Prize level display name (derived from rank) */
+
+	@ApiProperty({ example: 'Engineering' })
+	department: string;
+
+	@ApiProperty({ enum: EmployeeRole, example: EmployeeRole.SENIOR })
+	role: EmployeeRole;
+}
+
+export class WonPrizeResponseDto {
+	@ApiProperty({ example: 1 })
+	prizeId: number;
+
+	@ApiProperty({ example: 'iPhone 15 Pro' })
+	prizeName: string;
+
+	@ApiProperty({ description: 'Prize rank in format "{level}-{sequence}"', example: '1-1' })
+	rank: string;
+
+	@ApiProperty({ description: 'Prize level display name', example: '特獎' })
 	prizeLevel: string;
-	imageUrl: string;
-	eligibleCounts: { kind: 'bonus'; total: number };
+
+	@ApiProperty({ example: '2024-12-06T10:30:00.000Z' })
+	drawnAt: string;
+}
+
+export class ParticipantStatusResponseDto {
+	@ApiProperty({ type: ParticipantInfoResponseDto })
+	participant: ParticipantInfoResponseDto;
+
+	@ApiProperty({ type: [WonPrizeResponseDto] })
+	wonPrizes: WonPrizeResponseDto[];
+}
+
+// ============================================================
+// Create Raffle Response
+// ============================================================
+
+export class CreateRaffleResponseDto {
+	@ApiProperty({ example: 1 })
+	id: number;
 }
