@@ -49,7 +49,8 @@ export type EmployeeUpdate = Updateable<EmployeeTable>;
 export interface PrizeTemplateTable {
 	id: Generated<number>;
 	name: string;
-	prize_level: string;
+	/** Rank in format "{level}-{sequence}" where level is 1-5 */
+	rank: string;
 	image_url: string;
 	/** Number of senior winners */
 	senior: number;
@@ -108,9 +109,9 @@ export type RaffleParticipantUpdate = Updateable<RaffleParticipantTable>;
 export interface RafflePrizeTable {
 	id: Generated<number>;
 	raffle_id: number;
-	rank: number;
+	/** Rank in format "{level}-{sequence}" where level is 1-5 */
+	rank: string;
 	name: string;
-	prize_level: string;
 	image_url: string;
 	prize_template_id: number | null;
 	/** 'regular' | 'bonus' */

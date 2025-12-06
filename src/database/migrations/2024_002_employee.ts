@@ -16,6 +16,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 		.addColumn('role', 'varchar(20)', (col) => col.notNull())
 		.addColumn('created_at', 'datetime', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
 		.addColumn('updated_at', 'datetime', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('deleted_at', 'datetime')
 		.execute();
 
 	// Index on role for grouped queries

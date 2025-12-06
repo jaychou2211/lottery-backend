@@ -31,8 +31,10 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 		.addColumn('name', 'varchar(100)', (col) => col.notNull())
 		.addColumn('department', 'varchar(100)', (col) => col.notNull())
 		.addColumn('role', 'varchar(20)', (col) => col.notNull())
-		.addColumn('attended', 'boolean', (col) => col.notNull().defaultTo(true))
+		.addColumn('tags', 'text')
 		.addColumn('created_at', 'datetime', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('updated_at', 'datetime', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('deleted_at', 'datetime')
 		.execute();
 
 	// Unique constraint: one employee per raffle
@@ -44,13 +46,13 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 		.execute();
 
 	// Raffle Prize
+	// rank format: "{level}-{sequence}" (e.g., "1-1", "2-3", "5-1")
 	await db.schema
 		.createTable('raffle_prize')
 		.addColumn('id', 'integer', (col) => col.primaryKey().autoIncrement())
 		.addColumn('raffle_id', 'integer', (col) => col.notNull().references('raffle.id').onDelete('cascade'))
-		.addColumn('rank', 'integer', (col) => col.notNull())
+		.addColumn('rank', 'varchar(10)', (col) => col.notNull())
 		.addColumn('name', 'varchar(100)', (col) => col.notNull())
-		.addColumn('prize_level', 'varchar(50)', (col) => col.notNull())
 		.addColumn('image_url', 'varchar(500)', (col) => col.notNull())
 		.addColumn('prize_template_id', 'integer')
 		.addColumn('eligible_kind', 'varchar(10)', (col) => col.notNull())
