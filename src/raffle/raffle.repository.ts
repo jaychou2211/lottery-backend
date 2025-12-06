@@ -4,87 +4,62 @@ import { sql } from 'kysely';
 import {
 	InjectKysely,
 	type KyselyDatabase,
-	type RaffleRow,
-	type RaffleParticipantRow,
 	type RafflePrizeRow,
-	type WinnerRecordRow,
 	type NewRaffle,
 	type NewRaffleParticipant,
 	type NewRafflePrize,
 	type NewWinnerRecord,
 } from '../database';
-import { Raffle } from '../domain/raffle';
-import { RaffleParticipant } from '../domain/raffle/raffle-participant';
-import { RafflePrize, type PersistedPrize } from '../domain/raffle/raffle-prize';
-import { WinnerRecord } from '../domain/raffle/winner-record';
+import { ConcurrencyError, NotFoundError } from './errors';
+import {
+	Raffle,
+	Prize,
+	EligibilityPool,
+	type ParticipantEligibility,
+} from '../domain/raffle';
 import {
 	RaffleStatus,
 	EmployeeRole,
-	DrawnGroup,
 	RegularEligibleCounts,
 	BonusEligibleCounts,
 	PrizeRank,
 } from '../domain/shared';
 
+type Transaction = KyselyDatabase;
+
 @Injectable()
 export class RaffleRepository {
 	constructor(@InjectKysely() private readonly db: KyselyDatabase) {}
 
-	async findAll(): Promise<Raffle[]> {
-		const rows = await this.db.selectFrom('raffle').selectAll().execute();
-		const raffles: Raffle[] = [];
-		for (const row of rows) {
-			const raffle = await this.loadAggregate(row);
-			raffles.push(raffle);
-		}
-		return raffles;
-	}
+	async create(name: string): Promise<number> {
+		return this.db.transaction().execute(async (trx) => {
+			const newRaffle: NewRaffle = {
+				name,
+				status: RaffleStatus.DRAFT,
+				version: 1,
+			};
+			const result = await trx
+				.insertInto('raffle')
+				.values(newRaffle)
+				.returning(['id'])
+				.executeTakeFirstOrThrow();
 
-	async findById(id: number): Promise<Raffle | null> {
-		const row = await this.db
-			.selectFrom('raffle')
-			.selectAll()
-			.where('id', '=', id)
-			.executeTakeFirst();
-		if (!row) return null;
-		return this.loadAggregate(row);
-	}
+			const raffleId = result.id;
 
-	async create(name: string): Promise<Raffle> {
-		const newRaffle: NewRaffle = { name, status: RaffleStatus.DRAFT };
-		const result = await this.db
-			.insertInto('raffle')
-			.values(newRaffle)
-			.returning(['id'])
-			.executeTakeFirstOrThrow();
+			await this.snapshotEmployees(trx, raffleId);
+			await this.snapshotPrizeTemplates(trx, raffleId);
+			await this.loadAggregate(trx, raffleId);
 
-		const raffle = await this.findById(result.id);
-		if (!raffle) throw new Error('Failed to create raffle');
-		return raffle;
-	}
-
-	async save(raffle: Raffle): Promise<Raffle> {
-		await this.db.transaction().execute(async (trx) => {
-			// Update raffle status
-			await trx
-				.updateTable('raffle')
-				.set({ status: raffle.status, updated_at: sql`CURRENT_TIMESTAMP` })
-				.where('id', '=', raffle.id)
-				.execute();
-
-			// Sync participants
-			await this.syncParticipants(trx, raffle);
-
-			// Sync prizes
-			await this.syncPrizes(trx, raffle);
-
-			// Sync winners
-			await this.syncWinners(trx, raffle);
+			return raffleId;
 		});
+	}
 
-		const saved = await this.findById(raffle.id);
-		if (!saved) throw new Error('Failed to save raffle');
-		return saved;
+	async execute(id: number, fn: (raffle: Raffle) => Raffle): Promise<void> {
+		await this.db.transaction().execute(async (trx) => {
+			const raffle = await this.loadAggregate(trx, id);
+			const updated = fn(raffle);
+			await this.save(trx, raffle, updated);
+		});
 	}
 
 	async delete(id: number): Promise<boolean> {
@@ -95,67 +70,124 @@ export class RaffleRepository {
 		return result.numDeletedRows > 0n;
 	}
 
-	private async loadAggregate(row: RaffleRow): Promise<Raffle> {
-		const [participantRows, prizeRows, winnerRows] = await Promise.all([
-			this.db.selectFrom('raffle_participant').selectAll().where('raffle_id', '=', row.id).where('deleted_at', 'is', null).execute(),
-			this.db.selectFrom('raffle_prize').selectAll().where('raffle_id', '=', row.id).orderBy('rank').execute(),
-			this.db.selectFrom('winner_record').selectAll().where('raffle_id', '=', row.id).execute(),
-		]);
-
-		const participants = participantRows.map((p) => this.toParticipant(p));
-		const prizes = prizeRows.map((p) => this.toPrize(p)) as PersistedPrize[];
-		const winners = winnerRows.map((w) => this.toWinner(w));
-
-		return Raffle.create({
-			id: row.id,
-			name: row.name,
-			status: row.status as RaffleStatus,
-			prizes,
-			participants,
-			winners,
-		});
-	}
-
-	private async syncParticipants(trx: KyselyDatabase, raffle: Raffle): Promise<void> {
-		const existingRows = await trx
-			.selectFrom('raffle_participant')
-			.select(['id', 'employee_id'])
-			.where('raffle_id', '=', raffle.id)
+	private async snapshotEmployees(trx: Transaction, raffleId: number): Promise<void> {
+		const employees = await trx
+			.selectFrom('employee')
+			.select(['id', 'staff_number', 'name', 'department', 'role'])
 			.where('deleted_at', 'is', null)
 			.execute();
 
-		const existingMap = new Map(existingRows.map((r) => [r.employee_id, r]));
+		if (employees.length === 0) return;
 
-		for (const p of raffle.participants) {
-			const existing = existingMap.get(p.employeeId);
-			if (existing) {
-				existingMap.delete(p.employeeId);
-			} else {
-				const newParticipant: NewRaffleParticipant = {
-					raffle_id: raffle.id,
-					employee_id: p.employeeId,
-					staff_number: p.staffNumber,
-					name: p.name,
-					department: p.department,
-					role: p.role,
-					tags: p.tags.length > 0 ? JSON.stringify(p.tags) : null,
-				};
-				await trx.insertInto('raffle_participant').values(newParticipant).execute();
-			}
-		}
+		const participants: NewRaffleParticipant[] = employees.map((emp) => ({
+			raffle_id: raffleId,
+			employee_id: emp.id,
+			staff_number: emp.staff_number,
+			name: emp.name,
+			department: emp.department,
+			role: emp.role,
+			tags: null,
+		}));
 
-		// Soft delete removed participants
-		const removedIds = Array.from(existingMap.values()).map((r) => r.id);
-		if (removedIds.length > 0) {
-			await trx
-				.updateTable('raffle_participant')
-				.set({ deleted_at: new Date().toISOString() })
-				.where('id', 'in', removedIds)
-				.execute();
-		}
+		await trx.insertInto('raffle_participant').values(participants).execute();
 	}
 
-	private async syncPrizes(trx: KyselyDatabase, raffle: Raffle): Promise<void> {
+	private async snapshotPrizeTemplates(trx: Transaction, raffleId: number): Promise<void> {
+		const templates = await trx
+			.selectFrom('prize_template')
+			.select(['id', 'name', 'rank', 'image_url', 'senior', 'junior'])
+			.where('deleted_at', 'is', null)
+			.orderBy('rank')
+			.execute();
+
+		if (templates.length === 0) return;
+
+		const prizes: NewRafflePrize[] = templates.map((t) => ({
+			raffle_id: raffleId,
+			rank: t.rank,
+			name: t.name,
+			image_url: t.image_url,
+			prize_template_id: t.id,
+			eligible_kind: 'regular',
+			eligible_total: t.senior + t.junior,
+			eligible_senior: t.senior,
+			eligible_junior: t.junior,
+			is_drawn: 0,
+		}));
+
+		await trx.insertInto('raffle_prize').values(prizes).execute();
+	}
+
+	private async loadAggregate(trx: Transaction, id: number): Promise<Raffle> {
+		const [raffleRow, participantRows, prizeRows, wonIds] = await Promise.all([
+			trx
+				.selectFrom('raffle')
+				.select(['id', 'name', 'status', 'version'])
+				.where('id', '=', id)
+				.executeTakeFirst(),
+			trx
+				.selectFrom('raffle_participant')
+				.select(['id', 'role'])
+				.where('raffle_id', '=', id)
+				.where('deleted_at', 'is', null)
+				.execute(),
+			trx
+				.selectFrom('raffle_prize')
+				.selectAll()
+				.where('raffle_id', '=', id)
+				.orderBy('rank')
+				.execute(),
+			trx
+				.selectFrom('winner_record')
+				.select(['participant_id'])
+				.where('raffle_id', '=', id)
+				.execute()
+				.then((rows) => new Set(rows.map((r) => r.participant_id))),
+		]);
+
+		if (!raffleRow) {
+			throw new NotFoundError('Raffle', id);
+		}
+
+		const participants: ParticipantEligibility[] = participantRows.map((p) => ({
+			id: p.id,
+			role: p.role as EmployeeRole,
+		}));
+
+		const eligibilityPool = EligibilityPool.create(participants, wonIds);
+		const prizes = prizeRows.map((p) => this.toPrize(p));
+
+		return Raffle.create({
+			id: raffleRow.id,
+			name: raffleRow.name,
+			version: raffleRow.version,
+			status: raffleRow.status as RaffleStatus,
+			eligibilityPool,
+			prizes,
+		});
+	}
+
+	private async save(trx: Transaction, original: Raffle, updated: Raffle): Promise<void> {
+		const result = await trx
+			.updateTable('raffle')
+			.set({
+				status: updated.status,
+				version: original.version + 1,
+				updated_at: sql`CURRENT_TIMESTAMP`,
+			})
+			.where('id', '=', updated.id)
+			.where('version', '=', original.version)
+			.executeTakeFirst();
+
+		if (result.numUpdatedRows === 0n) {
+			throw new ConcurrencyError();
+		}
+
+		await this.syncPrizes(trx, updated);
+		await this.persistEvents(trx, updated);
+	}
+
+	private async syncPrizes(trx: Transaction, raffle: Raffle): Promise<void> {
 		const existingRows = await trx
 			.selectFrom('raffle_prize')
 			.select(['id', 'rank', 'is_drawn'])
@@ -167,8 +199,8 @@ export class RaffleRepository {
 		for (const prize of raffle.prizes) {
 			const rankStr = prize.rank.toString();
 			const existing = existingMap.get(rankStr);
+
 			if (existing) {
-				// Update is_drawn if changed
 				if ((existing.is_drawn === 1) !== prize.isDrawn) {
 					await trx
 						.updateTable('raffle_prize')
@@ -176,9 +208,7 @@ export class RaffleRepository {
 						.where('id', '=', existing.id)
 						.execute();
 				}
-				existingMap.delete(rankStr);
 			} else {
-				// Insert new prize
 				const newPrize: NewRafflePrize = {
 					raffle_id: raffle.id,
 					rank: rankStr,
@@ -196,47 +226,25 @@ export class RaffleRepository {
 		}
 	}
 
-	private async syncWinners(trx: KyselyDatabase, raffle: Raffle): Promise<void> {
-		const existingRows = await trx
-			.selectFrom('winner_record')
-			.select(['id', 'participant_id', 'raffle_prize_id'])
-			.where('raffle_id', '=', raffle.id)
-			.execute();
+	private async persistEvents(trx: Transaction, raffle: Raffle): Promise<void> {
+		if (raffle.pendingEvents.length === 0) return;
 
-		const existingSet = new Set(existingRows.map((r) => `${r.participant_id}-${r.raffle_prize_id}`));
+		const winnerRecords: NewWinnerRecord[] = raffle.pendingEvents.map((event) => ({
+			raffle_id: raffle.id,
+			raffle_prize_id: event.prizeId,
+			participant_id: event.participantId,
+			drawn_group: event.drawnGroup,
+		}));
 
-		for (const winner of raffle.winners) {
-			const key = `${winner.participantId}-${winner.rafflePrizeId}`;
-			if (!existingSet.has(key)) {
-				const newWinner: NewWinnerRecord = {
-					raffle_id: raffle.id,
-					raffle_prize_id: winner.rafflePrizeId,
-					participant_id: winner.participantId,
-					drawn_group: winner.drawnGroup,
-				};
-				await trx.insertInto('winner_record').values(newWinner).execute();
-			}
-		}
+		await trx.insertInto('winner_record').values(winnerRecords).execute();
 	}
 
-	private toParticipant(row: RaffleParticipantRow): RaffleParticipant {
-		return RaffleParticipant.create({
-			id: row.id,
-			employeeId: row.employee_id,
-			staffNumber: row.staff_number,
-			name: row.name,
-			department: row.department,
-			role: row.role as EmployeeRole,
-			tags: row.tags ? JSON.parse(row.tags) : [],
-		});
-	}
-
-	private toPrize(row: RafflePrizeRow): RafflePrize {
+	private toPrize(row: RafflePrizeRow): Prize {
 		const eligibleCounts = row.eligible_kind === 'bonus'
 			? BonusEligibleCounts.create(row.eligible_total)
 			: RegularEligibleCounts.hydrate(row.eligible_total, row.eligible_senior ?? 0, row.eligible_junior ?? 0);
 
-		return RafflePrize.create({
+		return Prize.create({
 			id: row.id,
 			rank: PrizeRank.fromString(row.rank),
 			name: row.name,
@@ -244,16 +252,6 @@ export class RaffleRepository {
 			eligibleCounts,
 			isDrawn: row.is_drawn === 1,
 			prizeTemplateId: row.prize_template_id ?? undefined,
-		});
-	}
-
-	private toWinner(row: WinnerRecordRow): WinnerRecord {
-		return WinnerRecord.create({
-			id: row.id,
-			rafflePrizeId: row.raffle_prize_id,
-			participantId: row.participant_id,
-			drawnGroup: row.drawn_group as DrawnGroup,
-			createdAt: new Date(row.created_at),
 		});
 	}
 }

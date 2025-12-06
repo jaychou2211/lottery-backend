@@ -1,86 +1,30 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 
+import { ConcurrencyError, NotFoundError } from './errors';
+import { RaffleProjection, type RaffleListItemDto, type RaffleDetailDto, type DrawResultDto, type ParticipantStatusDto, type RaffleDetailOptions, type RaffleListFilters } from './raffle.projection';
 import { RaffleRepository } from './raffle.repository';
-import { Raffle } from '../domain/raffle';
-import { RafflePrize, type PersistedBonusPrize, type PersistedPrize } from '../domain/raffle/raffle-prize';
-import { BonusEligibleCounts, RegularEligibleCounts, PrizeRank } from '../domain/shared';
+import { BonusEligibleCounts } from '../domain/shared';
 import { DomainError } from '../domain/shared/domain-error';
-import { EmployeeService } from '../employee';
-import { PrizeService } from '../prize';
 
 @Injectable()
 export class RaffleService {
 	constructor(
 		private readonly repository: RaffleRepository,
-		private readonly employeeService: EmployeeService,
-		private readonly prizeService: PrizeService,
+		private readonly projection: RaffleProjection,
 	) {}
 
-	async findAll(): Promise<Raffle[]> {
-		return this.repository.findAll();
-	}
-
-	async findById(id: number): Promise<Raffle> {
-		const raffle = await this.repository.findById(id);
-		if (!raffle) {
-			throw new NotFoundException(`Raffle with id ${id} not found`);
-		}
-		return raffle;
-	}
-
-	/**
-	 * Create a new raffle with all active employees and prize templates.
-	 * Employees are added as participants, prize templates are converted to raffle prizes.
-	 */
-	async create(name: string): Promise<Raffle> {
-		// 1. Create raffle in repository (gets ID)
-		const raffle = await this.repository.create(name);
-
-		// 2. Fetch all active employees and prize templates
-		const [employees, prizeTemplates] = await Promise.all([
-			this.employeeService.findAllActive(),
-			this.prizeService.findAllActive(),
-		]);
-
-		// 3. Add participants (employees)
-		let updated = raffle;
-		if (employees.length > 0) {
-			try {
-				updated = updated.addParticipants(employees);
-			} catch (e) {
-				if (e instanceof DomainError) {
-					throw new BadRequestException(e.message);
-				}
-				throw e;
+	async create(name: string): Promise<number> {
+		try {
+			return await this.repository.create(name);
+		} catch (e) {
+			if (e instanceof DomainError) {
+				throw new BadRequestException(e.message);
 			}
+			if (e instanceof NotFoundError) {
+				throw new NotFoundException(e.message);
+			}
+			throw e;
 		}
-
-		// 4. Convert prize templates to raffle prizes
-		if (prizeTemplates.length > 0) {
-			const rafflePrizes = prizeTemplates.map((template) =>
-				RafflePrize.create({
-					id: -1, // Temporary, will be replaced by DB
-					rank: PrizeRank.fromString(template.rank),
-					name: template.name,
-					imageUrl: template.imageUrl,
-					eligibleCounts: RegularEligibleCounts.create(template.senior, template.junior),
-					prizeTemplateId: template.id,
-				}),
-			);
-
-			// Replace prizes in raffle
-			updated = Raffle.create({
-				id: updated.id,
-				name: updated.name,
-				status: updated.status,
-				prizes: rafflePrizes as unknown as PersistedPrize[],
-				participants: [...updated.participants],
-				winners: [...updated.winners],
-			});
-		}
-
-		// 5. Save and return
-		return this.repository.save(updated);
 	}
 
 	async delete(id: number): Promise<void> {
@@ -90,62 +34,87 @@ export class RaffleService {
 		}
 	}
 
-	async updateStatus(raffleId: number, status: 'READY' | 'COMPLETED'): Promise<Raffle> {
-		const raffle = await this.findById(raffleId);
+	async transitionToReady(id: number): Promise<void> {
 		try {
-			const updated = status === 'READY' ? raffle.transitionToReady() : raffle.markAsCompleted();
-			return this.repository.save(updated);
+			await this.repository.execute(id, (raffle) => raffle.transitionToReady());
 		} catch (e) {
-			if (e instanceof DomainError) {
-				throw new BadRequestException(e.message);
-			}
-			throw e;
+			this.handleCommandError(e);
 		}
 	}
 
-	async draw(raffleId: number): Promise<Raffle> {
-		const raffle = await this.findById(raffleId);
+	async markAsCompleted(id: number): Promise<void> {
 		try {
-			const updated = raffle.draw();
-			return this.repository.save(updated);
+			await this.repository.execute(id, (raffle) => raffle.markAsCompleted());
 		} catch (e) {
-			if (e instanceof DomainError) {
-				throw new BadRequestException(e.message);
+			this.handleCommandError(e);
+		}
+	}
+
+	async draw(id: number): Promise<DrawResultDto> {
+		try {
+			await this.repository.execute(id, (raffle) => raffle.draw());
+
+			const result = await this.projection.getLatestDrawResult(id);
+			if (!result) {
+				throw new Error('Draw succeeded but no result found');
 			}
-			throw e;
+			return result;
+		} catch (e) {
+			this.handleCommandError(e);
 		}
 	}
 
 	async addBonusPrize(
-		raffleId: number,
-		prize: {
+		id: number,
+		input: {
 			name: string;
 			imageUrl: string;
 			total: number;
-			prizeTemplateId?: number;
 		},
-	): Promise<Raffle> {
-		const raffle = await this.findById(raffleId);
+	): Promise<void> {
 		try {
-			// Create bonus prize (id will be assigned by DB, use temp id for type safety)
-			// Rank is set to placeholder; Raffle.addBonusPrize will reassign it
-			const bonusPrize = RafflePrize.create({
-				id: -1, // Temporary, will be replaced by DB
-				rank: PrizeRank.create(5, 1), // Placeholder, will be auto-assigned by Raffle.addBonusPrize
-				name: prize.name,
-				imageUrl: prize.imageUrl,
-				eligibleCounts: BonusEligibleCounts.create(prize.total),
-				prizeTemplateId: prize.prizeTemplateId,
-			}) as PersistedBonusPrize;
-
-			const updated = raffle.addBonusPrize(bonusPrize);
-			return this.repository.save(updated);
+			await this.repository.execute(id, (raffle) =>
+				raffle.addBonusPrize({
+					name: input.name,
+					imageUrl: input.imageUrl,
+					eligibleCounts: BonusEligibleCounts.create(input.total),
+				}),
+			);
 		} catch (e) {
-			if (e instanceof DomainError) {
-				throw new BadRequestException(e.message);
-			}
-			throw e;
+			this.handleCommandError(e);
 		}
 	}
 
+	async getList(filters?: RaffleListFilters): Promise<RaffleListItemDto[]> {
+		return this.projection.getList(filters);
+	}
+
+	async getDetail(id: number, options?: RaffleDetailOptions): Promise<RaffleDetailDto> {
+		const result = await this.projection.getDetail(id, options);
+		if (!result) {
+			throw new NotFoundException(`Raffle with id ${id} not found`);
+		}
+		return result;
+	}
+
+	async getParticipantStatus(raffleId: number, staffNumber: string): Promise<ParticipantStatusDto> {
+		const result = await this.projection.getParticipantStatus(raffleId, staffNumber);
+		if (!result) {
+			throw new NotFoundException(`Participant with staffNumber ${staffNumber} not found in raffle ${raffleId}`);
+		}
+		return result;
+	}
+
+	private handleCommandError(e: unknown): never {
+		if (e instanceof DomainError) {
+			throw new BadRequestException(e.message);
+		}
+		if (e instanceof ConcurrencyError) {
+			throw new ConflictException(e.message);
+		}
+		if (e instanceof NotFoundError) {
+			throw new NotFoundException(e.message);
+		}
+		throw e;
+	}
 }
