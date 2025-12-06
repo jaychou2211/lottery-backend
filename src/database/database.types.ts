@@ -73,6 +73,8 @@ export interface RaffleTable {
 	name: string;
 	/** RaffleStatus: 'DRAFT' | 'READY' | 'IN_PROGRESS' | 'BONUS' | 'COMPLETED' */
 	status: string;
+	/** Optimistic locking version, starts at 1 */
+	version: ColumnType<number, number | undefined, number>;
 	created_at: ColumnType<string, string | undefined, never>;
 	updated_at: ColumnType<string, string | undefined, string | undefined>;
 }

@@ -4,6 +4,7 @@ import { up as smokeTestUp } from './2024_001_smoke_test';
 import { up as employeeUp } from './2024_002_employee';
 import { up as prizeTemplateUp } from './2024_003_prize_template';
 import { up as raffleUp } from './2024_004_raffle';
+import { up as raffleVersionUp } from './2024_005_raffle_version';
 
 /**
  * Ordered list of all migrations.
@@ -14,6 +15,7 @@ const migrations = [
 	employeeUp,
 	prizeTemplateUp,
 	raffleUp,
+	raffleVersionUp,
 ];
 
 /**
