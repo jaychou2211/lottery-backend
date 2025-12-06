@@ -52,7 +52,7 @@ export function fakeBonusPrize(
 ): PersistedBonusPrize {
 	return Prize.create({
 		id: faker.number.int({ min: 1 }),
-		rank: overrides.rank ?? PrizeRank.create(5, faker.number.int({ min: 1, max: 10 })),
+		rank: overrides.rank ?? PrizeRank.create(6, faker.number.int({ min: 1, max: 10 })),
 		name: faker.commerce.productName(),
 		eligibleCounts: overrides.eligibleCounts ?? BonusEligibleCounts.create(3),
 		imageUrl: faker.image.url(),

@@ -113,7 +113,7 @@ describe('Raffle', () => {
 			it('should transition IN_PROGRESS → BONUS when all regular prizes drawn', () => {
 				const regularPrize1 = fakePrize({ rank: PrizeRank.create(1, 1), eligibleCounts: RegularEligibleCounts.create(1, 1) });
 				const regularPrize2 = fakePrize({ rank: PrizeRank.create(1, 2), eligibleCounts: RegularEligibleCounts.create(1, 1) });
-				const bonusPrize = fakeBonusPrize({ rank: PrizeRank.create(5, 1), eligibleCounts: BonusEligibleCounts.create(1) });
+				const bonusPrize = fakeBonusPrize({ rank: PrizeRank.create(6, 1), eligibleCounts: BonusEligibleCounts.create(1) });
 				const pool = fakeEligibilityPool([
 					{ id: 1, role: EmployeeRole.SENIOR },
 					{ id: 2, role: EmployeeRole.JUNIOR },
@@ -270,9 +270,9 @@ describe('Raffle', () => {
 
 		it('should auto-assign rank after existing prizes', () => {
 			const existingPrizes = [
-				fakePrize({ rank: PrizeRank.create(5, 1) }),
-				fakePrize({ rank: PrizeRank.create(5, 2) }),
-				fakePrize({ rank: PrizeRank.create(5, 3) }),
+				fakePrize({ rank: PrizeRank.create(6, 1) }),
+				fakePrize({ rank: PrizeRank.create(6, 2) }),
+				fakePrize({ rank: PrizeRank.create(6, 3) }),
 			];
 			const pool = fakeEligibilityPool([
 				{ id: 1, role: EmployeeRole.SENIOR },
@@ -290,7 +290,7 @@ describe('Raffle', () => {
 				eligibleCounts: BonusEligibleCounts.create(2),
 			});
 
-			expect(result.prizes[3].rank.level).toBe(5);
+			expect(result.prizes[3].rank.level).toBe(6);
 			expect(result.prizes[3].rank.sequence).toBe(4);
 		});
 

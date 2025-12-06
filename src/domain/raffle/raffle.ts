@@ -108,9 +108,9 @@ export class Raffle {
 	}
 
 	private getNextBonusRank(): PrizeRank {
-		const level5Prizes = this.prizes.filter((p) => p.rank.level === 5);
-		const maxSequence = level5Prizes.reduce((max, p) => Math.max(max, p.rank.sequence), 0);
-		return PrizeRank.create(5, maxSequence + 1);
+		const bonusPrizes = this.prizes.filter((p) => p.rank.level === 6);
+		const maxSequence = bonusPrizes.reduce((max, p) => Math.max(max, p.rank.sequence), 0);
+		return PrizeRank.create(6, maxSequence + 1);
 	}
 
 	addBonusPrize(input: BonusPrizeInput): Raffle {
