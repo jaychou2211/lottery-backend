@@ -1,25 +1,20 @@
 import type { INestApplication } from '@nestjs/common';
-import type { TestingModule } from '@nestjs/testing';
-import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
-import { AppModule } from '../src/app.module';
+import { createTestApp, closeTestApp, type TestApp } from './test-utils';
 
 describe('AppController (e2e)', () => {
+	let testApp: TestApp;
 	let app: INestApplication;
 
 	beforeAll(async () => {
-		const moduleFixture: TestingModule = await Test.createTestingModule({
-			imports: [AppModule],
-		}).compile();
-
-		app = moduleFixture.createNestApplication();
-		await app.init();
+		testApp = await createTestApp();
+		app = testApp.app;
 	});
 
 	afterAll(async () => {
-		await app.close();
+		await closeTestApp(testApp);
 	});
 
 	it('/health (GET) should return 200', async () => {

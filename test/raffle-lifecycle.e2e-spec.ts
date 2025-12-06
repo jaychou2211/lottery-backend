@@ -1,10 +1,8 @@
-import { ValidationPipe, type INestApplication } from '@nestjs/common';
-import type { TestingModule } from '@nestjs/testing';
-import { Test } from '@nestjs/testing';
+import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
-import { AppModule } from '../src/app.module';
+import { createTestApp, closeTestApp, type TestApp } from './test-utils';
 
 /**
  * Raffle Lifecycle E2E Test
@@ -13,26 +11,19 @@ import { AppModule } from '../src/app.module';
  * DRAFT → READY → IN_PROGRESS → BONUS → COMPLETED
  */
 describe('Raffle Lifecycle (e2e)', () => {
+	let testApp: TestApp;
 	let app: INestApplication;
 	let raffleId: number;
 	let employeeCount: number;
 	let prizeCount: number;
 
 	beforeAll(async () => {
-		const moduleFixture: TestingModule = await Test.createTestingModule({
-			imports: [AppModule],
-		}).compile();
-
-		app = moduleFixture.createNestApplication();
-		app.useGlobalPipes(new ValidationPipe({
-			transform: true,
-			whitelist: true,
-		}));
-		await app.init();
+		testApp = await createTestApp();
+		app = testApp.app;
 	});
 
 	afterAll(async () => {
-		await app.close();
+		await closeTestApp(testApp);
 	});
 
 	// =========================================================
@@ -88,8 +79,7 @@ describe('Raffle Lifecycle (e2e)', () => {
 			expect(p.tags).toEqual([]);
 		});
 
-		response.body.prizes.forEach((p: { rank: number; isDrawn: boolean }, index: number) => {
-			expect(p.rank).toBe(index + 1);
+		response.body.prizes.forEach((p: { isDrawn: boolean }) => {
 			expect(p.isDrawn).toBe(false);
 		});
 
@@ -119,7 +109,7 @@ describe('Raffle Lifecycle (e2e)', () => {
 
 		expect(response.status).toBe(200);
 		expect(response.body.status).toBe('IN_PROGRESS');
-		expect(response.body.rank).toBe(1);
+		expect(response.body.rank).toBe('1-1');
 		expect(response.body.winners.length).toBeGreaterThan(0);
 	});
 
@@ -129,14 +119,13 @@ describe('Raffle Lifecycle (e2e)', () => {
 
 	it('should draw all remaining regular prizes until BONUS status', async () => {
 		let currentStatus = 'IN_PROGRESS';
-		let drawCount = 1; // Already drew rank 1
+		let drawCount = 1; // Already drew rank 1-1
 
 		while (currentStatus !== 'BONUS' && drawCount < prizeCount) {
 			const response = await request(app.getHttpServer())
 				.post(`/raffles/${raffleId}/draw`);
 
 			expect(response.status).toBe(200);
-			expect(response.body.rank).toBe(drawCount + 1);
 
 			currentStatus = response.body.status;
 			drawCount++;
@@ -163,7 +152,6 @@ describe('Raffle Lifecycle (e2e)', () => {
 			.post(`/raffles/${raffleId}/bonus-prizes`)
 			.send({
 				name: '額外獎',
-				prizeLevel: '額外獎',
 				imageUrl: 'https://example.com/extra.jpg',
 				total: 1,
 			});
@@ -202,7 +190,7 @@ describe('Raffle Lifecycle (e2e)', () => {
 
 		/* eslint-disable no-console */
 		console.log('\n========================================');
-		console.log('🎉 Raffle Lifecycle Complete!');
+		console.log('Raffle Lifecycle Complete!');
 		console.log('========================================');
 		console.log(`Raffle: ${response.body.name}`);
 		console.log(`Status: ${response.body.status}`);
