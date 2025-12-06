@@ -1,10 +1,11 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { ConcurrencyError, NotFoundError } from './errors';
-import { RaffleProjection, type RaffleListItemDto, type RaffleDetailDto, type DrawResultDto, type ParticipantStatusDto, type RaffleDetailOptions, type RaffleListFilters } from './raffle.projection';
+import { RaffleProjection, type RaffleListItemDto, type RaffleDetailDto, type DrawResultDto, type ParticipantStatusDto, type RaffleDetailOptions, type RaffleListFilters, type BonusPrizeDto } from './raffle.projection';
 import { RaffleRepository } from './raffle.repository';
 import { BonusEligibleCounts } from '../domain/shared';
 import { DomainError } from '../domain/shared/domain-error';
+import { DomainException, ResourceNotFoundException, OptimisticLockException } from '../shared/exception';
 
 @Injectable()
 export class RaffleService {
@@ -17,20 +18,14 @@ export class RaffleService {
 		try {
 			return await this.repository.create(name);
 		} catch (e) {
-			if (e instanceof DomainError) {
-				throw new BadRequestException(e.message);
-			}
-			if (e instanceof NotFoundError) {
-				throw new NotFoundException(e.message);
-			}
-			throw e;
+			this.handleCommandError(e);
 		}
 	}
 
 	async delete(id: number): Promise<void> {
 		const deleted = await this.repository.delete(id);
 		if (!deleted) {
-			throw new NotFoundException(`Raffle with id ${id} not found`);
+			throw new ResourceNotFoundException(new NotFoundError('Raffle', id));
 		}
 	}
 
@@ -71,7 +66,7 @@ export class RaffleService {
 			imageUrl: string;
 			total: number;
 		},
-	): Promise<void> {
+	): Promise<BonusPrizeDto> {
 		try {
 			await this.repository.execute(id, (raffle) =>
 				raffle.addBonusPrize({
@@ -80,6 +75,12 @@ export class RaffleService {
 					eligibleCounts: BonusEligibleCounts.create(input.total),
 				}),
 			);
+
+			const prize = await this.projection.getLatestBonusPrize(id);
+			if (!prize) {
+				throw new Error('Bonus prize added but not found');
+			}
+			return prize;
 		} catch (e) {
 			this.handleCommandError(e);
 		}
@@ -92,7 +93,7 @@ export class RaffleService {
 	async getDetail(id: number, options?: RaffleDetailOptions): Promise<RaffleDetailDto> {
 		const result = await this.projection.getDetail(id, options);
 		if (!result) {
-			throw new NotFoundException(`Raffle with id ${id} not found`);
+			throw new ResourceNotFoundException(new NotFoundError('Raffle', id));
 		}
 		return result;
 	}
@@ -100,20 +101,20 @@ export class RaffleService {
 	async getParticipantStatus(raffleId: number, staffNumber: string): Promise<ParticipantStatusDto> {
 		const result = await this.projection.getParticipantStatus(raffleId, staffNumber);
 		if (!result) {
-			throw new NotFoundException(`Participant with staffNumber ${staffNumber} not found in raffle ${raffleId}`);
+			throw new ResourceNotFoundException(new NotFoundError('Participant', staffNumber));
 		}
 		return result;
 	}
 
 	private handleCommandError(e: unknown): never {
 		if (e instanceof DomainError) {
-			throw new BadRequestException(e.message);
+			throw new DomainException(e);
 		}
 		if (e instanceof ConcurrencyError) {
-			throw new ConflictException(e.message);
+			throw new OptimisticLockException(e);
 		}
 		if (e instanceof NotFoundError) {
-			throw new NotFoundException(e.message);
+			throw new ResourceNotFoundException(e);
 		}
 		throw e;
 	}
