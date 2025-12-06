@@ -59,11 +59,12 @@ export class RaffleService {
 		}
 	}
 
+	private static readonly DEFAULT_BONUS_IMAGE_URL = '';
+
 	async addBonusPrize(
 		id: number,
 		input: {
 			name: string;
-			imageUrl: string;
 			total: number;
 		},
 	): Promise<BonusPrizeDto> {
@@ -71,7 +72,7 @@ export class RaffleService {
 			await this.repository.execute(id, (raffle) =>
 				raffle.addBonusPrize({
 					name: input.name,
-					imageUrl: input.imageUrl,
+					imageUrl: RaffleService.DEFAULT_BONUS_IMAGE_URL,
 					eligibleCounts: BonusEligibleCounts.create(input.total),
 				}),
 			);

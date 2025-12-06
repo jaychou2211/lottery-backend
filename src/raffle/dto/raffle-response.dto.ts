@@ -253,21 +253,15 @@ export class BonusPrizeResponseDto {
 	@ApiProperty({ example: 10 })
 	id: number;
 
-	@ApiProperty({ description: 'Prize rank in format "{level}-{sequence}"', example: 'B-1' })
+	@ApiProperty({ description: 'Prize rank in format "{level}-{sequence}"', example: '5-1' })
 	rank: string;
 
 	@ApiProperty({ example: 'Bonus AirPods' })
 	name: string;
 
-	@ApiProperty({ description: 'Prize level display name', example: '加碼獎' })
+	@ApiProperty({ description: 'Prize level display name', example: '頭獎' })
 	prizeLevel: string;
-
-	@ApiProperty({ example: 'https://example.com/airpods.jpg' })
-	imageUrl: string;
 
 	@ApiProperty({ type: BonusPrizeEligibleCountsResponseDto })
 	eligibleCounts: BonusPrizeEligibleCountsResponseDto;
-
-	@ApiPropertyOptional({ example: null, nullable: true })
-	prizeTemplateId: number | null;
 }

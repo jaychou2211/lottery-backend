@@ -55,12 +55,10 @@ export interface BonusPrizeDto {
 	rank: string;
 	name: string;
 	prizeLevel: string;
-	imageUrl: string;
 	eligibleCounts: {
 		kind: 'bonus';
 		total: number;
 	};
-	prizeTemplateId: number | null;
 }
 
 export interface WinnerDto {
@@ -386,12 +384,10 @@ export class RaffleProjection {
 			rank: row.rank,
 			name: row.name,
 			prizeLevel: prizeRank.levelName,
-			imageUrl: row.image_url,
 			eligibleCounts: {
 				kind: 'bonus',
 				total: row.eligible_total,
 			},
-			prizeTemplateId: row.prize_template_id,
 		};
 	}
 }
