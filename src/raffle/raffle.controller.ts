@@ -31,6 +31,7 @@ import {
 	RaffleDetailResponseDto,
 	DrawResultResponseDto,
 	ParticipantStatusResponseDto,
+	BonusPrizeResponseDto,
 } from './dto';
 import type {
 	RaffleDetailDto,
@@ -38,9 +39,11 @@ import type {
 	DrawResultDto,
 	ParticipantStatusDto,
 	RaffleDetailInclude,
+	BonusPrizeDto,
 } from './raffle.projection';
 import { RaffleService } from './raffle.service';
 import { RaffleStatus } from '../domain/shared';
+import { ErrorResponseDto } from '../shared/dto';
 
 @ApiTags('Raffles')
 @Controller('raffles')
@@ -65,7 +68,7 @@ export class RaffleController {
 	@Get(':id')
 	@ApiOperation({ summary: 'Get a raffle by ID' })
 	@ApiOkResponse({ description: 'Raffle details', type: RaffleDetailResponseDto })
-	@ApiNotFoundResponse({ description: 'Raffle not found' })
+	@ApiNotFoundResponse({ description: 'Raffle not found', type: ErrorResponseDto })
 	async getDetail(
 		@Param('id', ParseIntPipe) id: number,
 		@Query('include') include?: string,
@@ -78,7 +81,7 @@ export class RaffleController {
 	@HttpCode(HttpStatus.NO_CONTENT)
 	@ApiOperation({ summary: 'Delete a raffle' })
 	@ApiNoContentResponse({ description: 'Raffle deleted successfully' })
-	@ApiNotFoundResponse({ description: 'Raffle not found' })
+	@ApiNotFoundResponse({ description: 'Raffle not found', type: ErrorResponseDto })
 	async delete(@Param('id', ParseIntPipe) id: number): Promise<void> {
 		return this.service.delete(id);
 	}
@@ -87,9 +90,9 @@ export class RaffleController {
 	@HttpCode(HttpStatus.NO_CONTENT)
 	@ApiOperation({ summary: 'Update raffle status' })
 	@ApiNoContentResponse({ description: 'Status updated successfully' })
-	@ApiNotFoundResponse({ description: 'Raffle not found' })
-	@ApiBadRequestResponse({ description: 'Invalid status transition' })
-	@ApiConflictResponse({ description: 'Concurrent modification detected' })
+	@ApiNotFoundResponse({ description: 'Raffle not found', type: ErrorResponseDto })
+	@ApiBadRequestResponse({ description: 'Invalid status transition', type: ErrorResponseDto })
+	@ApiConflictResponse({ description: 'Concurrent modification detected', type: ErrorResponseDto })
 	async updateStatus(
 		@Param('id', ParseIntPipe) id: number,
 		@Body() dto: UpdateStatusDto,
@@ -105,31 +108,31 @@ export class RaffleController {
 	@HttpCode(HttpStatus.OK)
 	@ApiOperation({ summary: 'Draw winners for the next prize' })
 	@ApiOkResponse({ description: 'Draw result', type: DrawResultResponseDto })
-	@ApiNotFoundResponse({ description: 'Raffle not found' })
-	@ApiBadRequestResponse({ description: 'No prizes available to draw' })
-	@ApiConflictResponse({ description: 'Concurrent modification detected' })
+	@ApiNotFoundResponse({ description: 'Raffle not found', type: ErrorResponseDto })
+	@ApiBadRequestResponse({ description: 'No prizes available to draw', type: ErrorResponseDto })
+	@ApiConflictResponse({ description: 'Concurrent modification detected', type: ErrorResponseDto })
 	async draw(@Param('id', ParseIntPipe) id: number): Promise<DrawResultDto> {
 		return this.service.draw(id);
 	}
 
 	@Post(':id/bonus-prizes')
-	@HttpCode(HttpStatus.NO_CONTENT)
+	@HttpCode(HttpStatus.CREATED)
 	@ApiOperation({ summary: 'Add a bonus prize (BONUS status only)' })
-	@ApiNoContentResponse({ description: 'Bonus prize added successfully' })
-	@ApiNotFoundResponse({ description: 'Raffle not found' })
-	@ApiBadRequestResponse({ description: 'Invalid status or insufficient remaining participants' })
-	@ApiConflictResponse({ description: 'Concurrent modification detected' })
+	@ApiCreatedResponse({ description: 'Bonus prize added successfully', type: BonusPrizeResponseDto })
+	@ApiNotFoundResponse({ description: 'Raffle not found', type: ErrorResponseDto })
+	@ApiBadRequestResponse({ description: 'Invalid status or insufficient remaining participants', type: ErrorResponseDto })
+	@ApiConflictResponse({ description: 'Concurrent modification detected', type: ErrorResponseDto })
 	async addBonusPrize(
 		@Param('id', ParseIntPipe) id: number,
 		@Body() dto: AddBonusPrizeDto,
-	): Promise<void> {
-		await this.service.addBonusPrize(id, dto);
+	): Promise<BonusPrizeDto> {
+		return this.service.addBonusPrize(id, dto);
 	}
 
 	@Get(':id/participants/:staffNumber')
 	@ApiOperation({ summary: 'Get participant status in a raffle' })
 	@ApiOkResponse({ description: 'Participant status', type: ParticipantStatusResponseDto })
-	@ApiNotFoundResponse({ description: 'Participant not found' })
+	@ApiNotFoundResponse({ description: 'Participant not found', type: ErrorResponseDto })
 	async getParticipantStatus(
 		@Param('id', ParseIntPipe) id: number,
 		@Param('staffNumber') staffNumber: string,

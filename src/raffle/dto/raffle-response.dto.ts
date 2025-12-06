@@ -236,3 +236,38 @@ export class CreateRaffleResponseDto {
 	@ApiProperty({ example: 1 })
 	id: number;
 }
+
+// ============================================================
+// Add Bonus Prize Response
+// ============================================================
+
+export class BonusPrizeEligibleCountsResponseDto {
+	@ApiProperty({ enum: ['bonus'], example: 'bonus' })
+	kind: 'bonus';
+
+	@ApiProperty({ example: 3 })
+	total: number;
+}
+
+export class BonusPrizeResponseDto {
+	@ApiProperty({ example: 10 })
+	id: number;
+
+	@ApiProperty({ description: 'Prize rank in format "{level}-{sequence}"', example: 'B-1' })
+	rank: string;
+
+	@ApiProperty({ example: 'Bonus AirPods' })
+	name: string;
+
+	@ApiProperty({ description: 'Prize level display name', example: '加碼獎' })
+	prizeLevel: string;
+
+	@ApiProperty({ example: 'https://example.com/airpods.jpg' })
+	imageUrl: string;
+
+	@ApiProperty({ type: BonusPrizeEligibleCountsResponseDto })
+	eligibleCounts: BonusPrizeEligibleCountsResponseDto;
+
+	@ApiPropertyOptional({ example: null, nullable: true })
+	prizeTemplateId: number | null;
+}
