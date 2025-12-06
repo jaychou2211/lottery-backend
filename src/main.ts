@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
+import { HttpExceptionFilter } from './common/filter';
 import { bootstrapSwagger } from './helper/api-doc';
 
 async function bootstrap() {
@@ -18,6 +19,8 @@ async function bootstrap() {
 		transform: true,
 		whitelist: true,
 	}));
+
+	app.useGlobalFilters(new HttpExceptionFilter());
 
 	bootstrapSwagger(app);
 
