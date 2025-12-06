@@ -50,6 +50,19 @@ export interface PrizeDto {
 	prizeTemplateId: number | null;
 }
 
+export interface BonusPrizeDto {
+	id: number;
+	rank: string;
+	name: string;
+	prizeLevel: string;
+	imageUrl: string;
+	eligibleCounts: {
+		kind: 'bonus';
+		total: number;
+	};
+	prizeTemplateId: number | null;
+}
+
 export interface WinnerDto {
 	id: number;
 	rafflePrizeId: number;
@@ -352,5 +365,33 @@ export class RaffleProjection {
 			drawnGroup: row.drawn_group as DrawnGroup,
 			createdAt: row.created_at,
 		}));
+	}
+
+	async getLatestBonusPrize(raffleId: number): Promise<BonusPrizeDto | null> {
+		const row = await this.db
+			.selectFrom('raffle_prize')
+			.selectAll()
+			.where('raffle_id', '=', raffleId)
+			.where('eligible_kind', '=', 'bonus')
+			.orderBy('id', 'desc')
+			.limit(1)
+			.executeTakeFirst();
+
+		if (!row) return null;
+
+		const prizeRank = PrizeRank.fromString(row.rank);
+
+		return {
+			id: row.id,
+			rank: row.rank,
+			name: row.name,
+			prizeLevel: prizeRank.levelName,
+			imageUrl: row.image_url,
+			eligibleCounts: {
+				kind: 'bonus',
+				total: row.eligible_total,
+			},
+			prizeTemplateId: row.prize_template_id,
+		};
 	}
 }
