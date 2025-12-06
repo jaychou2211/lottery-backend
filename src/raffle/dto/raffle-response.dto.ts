@@ -24,8 +24,10 @@ export class EligibleCountsResponseDto {
 
 export class PrizeResponseDto {
 	id: number;
-	rank: number;
+	/** Prize rank in format "{level}-{sequence}" */
+	rank: string;
 	name: string;
+	/** Prize level display name (derived from rank) */
 	prizeLevel: string;
 	imageUrl: string;
 	eligibleCounts: EligibleCountsResponseDto;
@@ -82,9 +84,11 @@ export class DrawWinnerDto {
 }
 
 export class DrawResponseDto {
-	rank: number;
+	/** Prize rank in format "{level}-{sequence}" */
+	rank: string;
 	prize: {
 		name: string;
+		/** Prize level display name (derived from rank) */
 		prizeLevel: string;
 		imageUrl: string;
 	};
@@ -96,8 +100,10 @@ export class DrawResponseDto {
 
 export class BonusPrizeResponseDto {
 	id: number;
-	rank: number;
+	/** Prize rank in format "{level}-{sequence}" */
+	rank: string;
 	name: string;
+	/** Prize level display name (derived from rank) */
 	prizeLevel: string;
 	imageUrl: string;
 	eligibleCounts: { kind: 'bonus'; total: number };

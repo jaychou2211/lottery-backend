@@ -1,17 +1,9 @@
-import type { EligibleCounts, BonusEligibleCounts, RegularEligibleCounts } from '../shared';
-import { DomainError } from '../shared/domain-error';
+import type { EligibleCounts, BonusEligibleCounts, RegularEligibleCounts, PrizeRank } from '../shared';
+import { DomainError } from '../shared';
 
 // ============================================================
 // Errors
 // ============================================================
-
-export class InvalidPrizeRankError extends DomainError {
-	readonly code = 'INVALID_PRIZE_RANK';
-
-	constructor(public readonly rank: number) {
-		super(`prize rank must be positive, got ${rank}`);
-	}
-}
 
 export class EmptyPrizeNameError extends DomainError {
 	readonly code = 'EMPTY_PRIZE_NAME';
@@ -21,7 +13,7 @@ export class EmptyPrizeNameError extends DomainError {
 	}
 }
 
-export type RafflePrizeError = InvalidPrizeRankError | EmptyPrizeNameError;
+export type RafflePrizeError = EmptyPrizeNameError;
 
 // ============================================================
 // Entity
@@ -29,9 +21,8 @@ export type RafflePrizeError = InvalidPrizeRankError | EmptyPrizeNameError;
 
 export interface RafflePrizeProps {
 	id?: number;
-	rank: number;
+	rank: PrizeRank;
 	name: string;
-	prizeLevel: string;
 	eligibleCounts: EligibleCounts;
 	imageUrl: string;
 	isDrawn?: boolean;
@@ -43,13 +34,14 @@ export interface RafflePrizeProps {
  *
  * Belongs to Raffle aggregate.
  * Lifecycle is controlled by Raffle.
+ *
+ * Note: prizeLevel is derived from rank.level at the DTO layer.
  */
 export class RafflePrize {
 	private constructor(
 		public readonly id: number | null,
-		public readonly rank: number,
+		public readonly rank: PrizeRank,
 		public readonly name: string,
-		public readonly prizeLevel: string,
 		public readonly eligibleCounts: EligibleCounts,
 		public readonly imageUrl: string,
 		public readonly isDrawn: boolean,
@@ -59,14 +51,9 @@ export class RafflePrize {
 	/**
 	 * Creates a RafflePrize with validation.
 	 *
-	 * @throws InvalidPrizeRankError if rank <= 0
 	 * @throws EmptyPrizeNameError if name is empty
 	 */
 	static create(props: RafflePrizeProps): RafflePrize {
-		if (props.rank <= 0) {
-			throw new InvalidPrizeRankError(props.rank);
-		}
-
 		if (!props.name.trim()) {
 			throw new EmptyPrizeNameError();
 		}
@@ -75,7 +62,6 @@ export class RafflePrize {
 			props.id ?? null,
 			props.rank,
 			props.name,
-			props.prizeLevel,
 			props.eligibleCounts,
 			props.imageUrl,
 			props.isDrawn ?? false,
@@ -88,7 +74,6 @@ export class RafflePrize {
 			this.id,
 			this.rank,
 			this.name,
-			this.prizeLevel,
 			this.eligibleCounts,
 			this.imageUrl,
 			true,
@@ -96,15 +81,15 @@ export class RafflePrize {
 		) as T;
 	}
 
-	withRank<T extends RafflePrize>(this: T, rank: number): T {
-		if (rank <= 0) {
-			throw new InvalidPrizeRankError(rank);
-		}
+	/**
+	 * Creates a new RafflePrize with a different rank.
+	 * Used for auto-assigning bonus prize ranks.
+	 */
+	withRank<T extends RafflePrize>(this: T, rank: PrizeRank): T {
 		return new RafflePrize(
 			this.id,
 			rank,
 			this.name,
-			this.prizeLevel,
 			this.eligibleCounts,
 			this.imageUrl,
 			this.isDrawn,

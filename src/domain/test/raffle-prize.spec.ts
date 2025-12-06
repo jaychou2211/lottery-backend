@@ -3,8 +3,8 @@
  *
  * @see {@link RafflePrize}
  */
-import { InvalidPrizeRankError, EmptyPrizeNameError, RafflePrize } from '../raffle';
-import { fakePrize, fakeBonusPrize, RegularEligibleCounts, BonusEligibleCounts } from './factories';
+import { EmptyPrizeNameError, RafflePrize } from '../raffle';
+import { fakePrize, fakeBonusPrize, RegularEligibleCounts, BonusEligibleCounts, PrizeRank } from './factories';
 
 describe('RafflePrize', () => {
 	describe('creation', () => {
@@ -16,9 +16,8 @@ describe('RafflePrize', () => {
 
 		it('should create with id defaulting to null when not provided', () => {
 			const prize = RafflePrize.create({
-				rank: 1,
+				rank: PrizeRank.create(1, 1),
 				name: 'Test',
-				prizeLevel: 'Gold',
 				eligibleCounts: RegularEligibleCounts.create(2, 1),
 				imageUrl: 'http://example.com/image.png',
 			});
@@ -34,10 +33,6 @@ describe('RafflePrize', () => {
 	});
 
 	describe('validation', () => {
-		it.each([0, -1, -100])('should throw InvalidPrizeRankError when rank is %d', (rank) => {
-			expect(() => fakePrize({ rank })).toThrow(InvalidPrizeRankError);
-		});
-
 		it.each(['', '   ', '\t\n'])('should throw EmptyPrizeNameError when name is "%s"', (name) => {
 			expect(() => fakePrize({ name })).toThrow(EmptyPrizeNameError);
 		});
@@ -54,13 +49,37 @@ describe('RafflePrize', () => {
 		});
 
 		it('should preserve all other properties', () => {
-			const prize = fakePrize({ id: 42, rank: 3, name: 'Test Prize' });
+			const rank = PrizeRank.create(2, 3);
+			const prize = fakePrize({ id: 42, rank, name: 'Test Prize' });
 
 			const drawn = prize.markAsDrawn();
 
 			expect(drawn.id).toBe(42);
-			expect(drawn.rank).toBe(3);
+			expect(drawn.rank.equals(rank)).toBe(true);
 			expect(drawn.name).toBe('Test Prize');
+		});
+	});
+
+	describe('withRank', () => {
+		it('should return new instance with updated rank', () => {
+			const originalRank = PrizeRank.create(1, 1);
+			const newRank = PrizeRank.create(2, 5);
+			const prize = fakePrize({ rank: originalRank });
+
+			const updated = prize.withRank(newRank);
+
+			expect(updated.rank.equals(newRank)).toBe(true);
+			expect(prize.rank.equals(originalRank)).toBe(true); // immutable
+		});
+
+		it('should preserve all other properties', () => {
+			const prize = fakePrize({ id: 42, name: 'Test Prize' });
+
+			const updated = prize.withRank(PrizeRank.create(3, 1));
+
+			expect(updated.id).toBe(42);
+			expect(updated.name).toBe('Test Prize');
+			expect(updated.isDrawn).toBe(prize.isDrawn);
 		});
 	});
 
@@ -79,6 +98,24 @@ describe('RafflePrize', () => {
 			});
 
 			expect(prize.isBonus()).toBe(true);
+		});
+	});
+
+	describe('isRegular', () => {
+		it('should return true for regular prize', () => {
+			const prize = fakePrize({
+				eligibleCounts: RegularEligibleCounts.create(4, 2),
+			});
+
+			expect(prize.isRegular()).toBe(true);
+		});
+
+		it('should return false for bonus prize', () => {
+			const prize = fakeBonusPrize({
+				eligibleCounts: BonusEligibleCounts.create(5),
+			});
+
+			expect(prize.isRegular()).toBe(false);
 		});
 	});
 });

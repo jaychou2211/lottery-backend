@@ -23,6 +23,7 @@ import {
 	DrawnGroup,
 	RegularEligibleCounts,
 	BonusEligibleCounts,
+	PrizeRank,
 } from '../domain/shared';
 
 @Injectable()
@@ -164,7 +165,8 @@ export class RaffleRepository {
 		const existingMap = new Map(existingRows.map((r) => [r.rank, r]));
 
 		for (const prize of raffle.prizes) {
-			const existing = existingMap.get(prize.rank);
+			const rankStr = prize.rank.toString();
+			const existing = existingMap.get(rankStr);
 			if (existing) {
 				// Update is_drawn if changed
 				if ((existing.is_drawn === 1) !== prize.isDrawn) {
@@ -174,14 +176,13 @@ export class RaffleRepository {
 						.where('id', '=', existing.id)
 						.execute();
 				}
-				existingMap.delete(prize.rank);
+				existingMap.delete(rankStr);
 			} else {
 				// Insert new prize
 				const newPrize: NewRafflePrize = {
 					raffle_id: raffle.id,
-					rank: prize.rank,
+					rank: rankStr,
 					name: prize.name,
-					prize_level: prize.prizeLevel,
 					image_url: prize.imageUrl,
 					prize_template_id: prize.prizeTemplateId,
 					eligible_kind: prize.eligibleCounts.isBonus() ? 'bonus' : 'regular',
@@ -237,9 +238,8 @@ export class RaffleRepository {
 
 		return RafflePrize.create({
 			id: row.id,
-			rank: row.rank,
+			rank: PrizeRank.fromString(row.rank),
 			name: row.name,
-			prizeLevel: row.prize_level,
 			imageUrl: row.image_url,
 			eligibleCounts,
 			isDrawn: row.is_drawn === 1,

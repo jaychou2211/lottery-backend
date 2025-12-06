@@ -116,9 +116,9 @@ export class RaffleController {
 		const prize = raffle.prizes[raffle.prizes.length - 1];
 		return {
 			id: prize.id,
-			rank: prize.rank,
+			rank: prize.rank.toString(),
 			name: prize.name,
-			prizeLevel: prize.prizeLevel,
+			prizeLevel: prize.rank.levelName,
 			imageUrl: prize.imageUrl,
 			eligibleCounts: { kind: 'bonus', total: prize.eligibleCounts.total },
 		};
@@ -140,9 +140,9 @@ export class RaffleController {
 			})),
 			prizes: exclude.includes('prizes') ? [] : raffle.prizes.map((p): PrizeResponseDto => ({
 				id: p.id,
-				rank: p.rank,
+				rank: p.rank.toString(),
 				name: p.name,
-				prizeLevel: p.prizeLevel,
+				prizeLevel: p.rank.levelName,
 				imageUrl: p.imageUrl,
 				eligibleCounts: this.toEligibleCountsResponse(p.eligibleCounts),
 				isDrawn: p.isDrawn,
@@ -184,15 +184,15 @@ export class RaffleController {
 
 	private toDrawResponse(raffle: Raffle): DrawResponseDto {
 		const drawnPrizes = raffle.prizes.filter((p) => p.isDrawn);
-		const lastDrawnPrize = drawnPrizes.reduce((a, b) => (a.rank > b.rank ? a : b));
+		const lastDrawnPrize = drawnPrizes.reduce((a, b) => (a.rank.compareTo(b.rank) > 0 ? a : b));
 		const prizeWinners = raffle.winners.filter((w) => w.rafflePrizeId === lastDrawnPrize.id);
 		const participantMap = new Map(raffle.participants.map((p) => [p.id, p]));
 
 		return {
-			rank: lastDrawnPrize.rank,
+			rank: lastDrawnPrize.rank.toString(),
 			prize: {
 				name: lastDrawnPrize.name,
-				prizeLevel: lastDrawnPrize.prizeLevel,
+				prizeLevel: lastDrawnPrize.rank.levelName,
 				imageUrl: lastDrawnPrize.imageUrl,
 			},
 			winners: prizeWinners.map((w): DrawWinnerDto => {

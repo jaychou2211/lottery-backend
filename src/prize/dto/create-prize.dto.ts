@@ -1,4 +1,4 @@
-import { IsInt, IsNotEmpty, IsUrl, MaxLength, Min } from 'class-validator';
+import { IsInt, IsNotEmpty, IsUrl, Matches, MaxLength, Min } from 'class-validator';
 
 export class CreatePrizeDto {
 	/** Prize name */
@@ -6,10 +6,11 @@ export class CreatePrizeDto {
 	@MaxLength(100)
 	name: string;
 
-	/** Prize level (e.g., "特獎", "頭獎", "二獎") */
+	/** Prize rank in format "{level}-{sequence}" (e.g., "1-1", "2-3", "5-1") */
 	@IsNotEmpty()
-	@MaxLength(50)
-	prizeLevel: string;
+	@Matches(/^[1-5]-\d+$/, { message: 'rank must be in format "{level}-{sequence}" where level is 1-5' })
+	@MaxLength(10)
+	rank: string;
 
 	/** Prize image URL */
 	@IsUrl()

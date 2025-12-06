@@ -26,7 +26,9 @@ import {
 	RaffleStatus,
 	EmployeeRole,
 	DrawnGroup,
+	PrizeRank,
 } from './factories';
+import { NonConsecutiveSequenceError } from '../shared';
 
 describe('Raffle', () => {
 	describe('creation', () => {
@@ -41,6 +43,16 @@ describe('Raffle', () => {
 			const raffle = fakeRaffle({ status: RaffleStatus.READY });
 
 			expect(raffle.status).toBe(RaffleStatus.READY);
+		});
+
+		// Prize rank validation details are tested in prize-rank.spec.ts
+		it('should validate prize ranks on creation', () => {
+			const invalidPrizes = [
+				fakePrize({ rank: PrizeRank.create(1, 1) }),
+				fakePrize({ rank: PrizeRank.create(1, 3) }), // gap
+			];
+
+			expect(() => fakeRaffle({ prizes: invalidPrizes })).toThrow(NonConsecutiveSequenceError);
 		});
 	});
 
@@ -79,7 +91,7 @@ describe('Raffle', () => {
 
 		describe('automatic transitions', () => {
 			it('should transition READY → IN_PROGRESS on first draw', () => {
-				const prize = fakePrize({ rank: 1, eligibleCounts: RegularEligibleCounts.create(1, 1) });
+				const prize = fakePrize({ rank: PrizeRank.create(1, 1), eligibleCounts: RegularEligibleCounts.create(1, 1) });
 				const raffle = fakeRaffle({
 					prizes: [prize],
 					status: RaffleStatus.READY,
@@ -99,9 +111,9 @@ describe('Raffle', () => {
 			});
 
 			it('should transition IN_PROGRESS → BONUS when all regular prizes drawn', () => {
-				const regularPrize1 = fakePrize({ rank: 1, eligibleCounts: RegularEligibleCounts.create(1, 1) });
-				const regularPrize2 = fakePrize({ rank: 2, eligibleCounts: RegularEligibleCounts.create(1, 1) });
-				const bonusPrize = fakeBonusPrize({ rank: 3, eligibleCounts: BonusEligibleCounts.create(1) });
+				const regularPrize1 = fakePrize({ rank: PrizeRank.create(1, 1), eligibleCounts: RegularEligibleCounts.create(1, 1) });
+				const regularPrize2 = fakePrize({ rank: PrizeRank.create(1, 2), eligibleCounts: RegularEligibleCounts.create(1, 1) });
+				const bonusPrize = fakeBonusPrize({ rank: PrizeRank.create(5, 1), eligibleCounts: BonusEligibleCounts.create(1) });
 				const raffle = fakeRaffle({
 					prizes: [regularPrize1, regularPrize2, bonusPrize],
 					status: RaffleStatus.READY,
@@ -128,8 +140,8 @@ describe('Raffle', () => {
 			});
 
 			it('should stay IN_PROGRESS when more regular prizes remain', () => {
-				const prize1 = fakePrize({ rank: 1, eligibleCounts: RegularEligibleCounts.create(1, 1) });
-				const prize2 = fakePrize({ rank: 2, eligibleCounts: RegularEligibleCounts.create(1, 1) });
+				const prize1 = fakePrize({ rank: PrizeRank.create(1, 1), eligibleCounts: RegularEligibleCounts.create(1, 1) });
+				const prize2 = fakePrize({ rank: PrizeRank.create(1, 2), eligibleCounts: RegularEligibleCounts.create(1, 1) });
 				const raffle = fakeRaffle({
 					prizes: [prize1, prize2],
 					status: RaffleStatus.READY,
@@ -154,7 +166,7 @@ describe('Raffle', () => {
 
 	describe('transitionToReady (using participants)', () => {
 		it('should transition to READY when participants are sufficient', () => {
-			const prize = fakePrize({ rank: 1, eligibleCounts: RegularEligibleCounts.create(2, 1) });
+			const prize = fakePrize({ rank: PrizeRank.create(1, 1), eligibleCounts: RegularEligibleCounts.create(2, 1) });
 			const raffle = fakeRaffle({
 				prizes: [prize],
 				status: RaffleStatus.DRAFT,
@@ -169,14 +181,14 @@ describe('Raffle', () => {
 		});
 
 		it('should throw EmptyParticipantsError when participants is empty', () => {
-			const prize = fakePrize({ rank: 1, eligibleCounts: RegularEligibleCounts.create(2, 1) });
+			const prize = fakePrize({ rank: PrizeRank.create(1, 1), eligibleCounts: RegularEligibleCounts.create(2, 1) });
 			const raffle = fakeRaffle({ prizes: [prize], status: RaffleStatus.DRAFT });
 
 			expect(() => raffle.transitionToReady()).toThrow(EmptyParticipantsError);
 		});
 
 		it('should throw InsufficientEmployeesError when senior count is insufficient', () => {
-			const prize = fakePrize({ rank: 1, eligibleCounts: RegularEligibleCounts.create(2, 1) });
+			const prize = fakePrize({ rank: PrizeRank.create(1, 1), eligibleCounts: RegularEligibleCounts.create(2, 1) });
 			const raffle = fakeRaffle({
 				prizes: [prize],
 				status: RaffleStatus.DRAFT,
@@ -190,7 +202,7 @@ describe('Raffle', () => {
 		});
 
 		it('should throw InsufficientEmployeesError when junior count is insufficient', () => {
-			const prize = fakePrize({ rank: 1, eligibleCounts: RegularEligibleCounts.create(2, 1) });
+			const prize = fakePrize({ rank: PrizeRank.create(1, 1), eligibleCounts: RegularEligibleCounts.create(2, 1) });
 			const raffle = fakeRaffle({
 				prizes: [prize],
 				status: RaffleStatus.DRAFT,
@@ -205,8 +217,8 @@ describe('Raffle', () => {
 		});
 
 		it('should aggregate counts across multiple prizes', () => {
-			const prize1 = fakePrize({ rank: 1, eligibleCounts: RegularEligibleCounts.create(2, 1) });
-			const prize2 = fakePrize({ rank: 2, eligibleCounts: RegularEligibleCounts.create(2, 1) });
+			const prize1 = fakePrize({ rank: PrizeRank.create(1, 1), eligibleCounts: RegularEligibleCounts.create(2, 1) });
+			const prize2 = fakePrize({ rank: PrizeRank.create(1, 2), eligibleCounts: RegularEligibleCounts.create(2, 1) });
 			// Total need: 4 senior + 2 junior
 			const raffle = fakeRaffle({
 				prizes: [prize1, prize2],
@@ -234,7 +246,7 @@ describe('Raffle', () => {
 					fakeParticipant({ id: 3, employeeId: 300, role: EmployeeRole.SENIOR }),
 				],
 			});
-			const bonusPrize = fakeBonusPrize({ rank: 99, eligibleCounts: BonusEligibleCounts.create(3) });
+			const bonusPrize = fakeBonusPrize({ rank: PrizeRank.create(5, 99), eligibleCounts: BonusEligibleCounts.create(3) });
 
 			const result = raffle.addBonusPrize(bonusPrize);
 
@@ -243,26 +255,38 @@ describe('Raffle', () => {
 		});
 
 		it('should auto-assign rank after existing prizes', () => {
-			const existingPrize = fakePrize({ rank: 5 });
+			// Level 5 with sequences 1, 2, 3 (consecutive)
+			const existingPrizes = [
+				fakePrize({ rank: PrizeRank.create(5, 1) }),
+				fakePrize({ rank: PrizeRank.create(5, 2) }),
+				fakePrize({ rank: PrizeRank.create(5, 3) }),
+			];
 			const raffle = fakeRaffle({
 				status: RaffleStatus.BONUS,
-				prizes: [existingPrize],
+				prizes: existingPrizes,
 				participants: [
 					fakeParticipant({ id: 1, employeeId: 100, role: EmployeeRole.SENIOR }),
 					fakeParticipant({ id: 2, employeeId: 200, role: EmployeeRole.JUNIOR }),
 				],
 			});
-			const bonusPrize = fakeBonusPrize({ rank: 1, eligibleCounts: BonusEligibleCounts.create(2) });
+			const bonusPrize = fakeBonusPrize({ rank: PrizeRank.create(5, 1), eligibleCounts: BonusEligibleCounts.create(2) });
 
 			const result = raffle.addBonusPrize(bonusPrize);
 
-			expect(result.prizes[1].rank).toBe(6); // auto-assigned after max rank
+			// Should be assigned after max regular sequence (3) + 1 = 4
+			expect(result.prizes[3].rank.level).toBe(5);
+			expect(result.prizes[3].rank.sequence).toBe(4);
 		});
 
 		it('should auto-assign sequential ranks for multiple bonus prizes', () => {
+			// Level 5 with sequences 1, 2 (consecutive)
+			const existingPrizes = [
+				fakePrize({ rank: PrizeRank.create(5, 1) }),
+				fakePrize({ rank: PrizeRank.create(5, 2) }),
+			];
 			const raffle = fakeRaffle({
 				status: RaffleStatus.BONUS,
-				prizes: [fakePrize({ rank: 3 })],
+				prizes: existingPrizes,
 				participants: [
 					fakeParticipant({ id: 1, employeeId: 100, role: EmployeeRole.SENIOR }),
 					fakeParticipant({ id: 2, employeeId: 200, role: EmployeeRole.JUNIOR }),
@@ -273,13 +297,13 @@ describe('Raffle', () => {
 			const result1 = raffle.addBonusPrize(fakeBonusPrize({ eligibleCounts: BonusEligibleCounts.create(1) }));
 			const result2 = result1.addBonusPrize(fakeBonusPrize({ eligibleCounts: BonusEligibleCounts.create(1) }));
 
-			expect(result1.prizes[1].rank).toBe(4);
-			expect(result2.prizes[2].rank).toBe(5);
+			expect(result1.prizes[2].rank.sequence).toBe(3);
+			expect(result2.prizes[3].rank.sequence).toBe(4);
 		});
 
 		it('should throw InvalidRaffleStatusError when not in BONUS status', () => {
 			const raffle = fakeRaffle({ status: RaffleStatus.IN_PROGRESS });
-			const bonusPrize = fakeBonusPrize({ rank: 1, eligibleCounts: BonusEligibleCounts.create(3) });
+			const bonusPrize = fakeBonusPrize({ rank: PrizeRank.create(5, 1), eligibleCounts: BonusEligibleCounts.create(3) });
 
 			expect(() => raffle.addBonusPrize(bonusPrize)).toThrow(InvalidRaffleStatusError);
 		});
@@ -294,7 +318,7 @@ describe('Raffle', () => {
 					fakeParticipant({ id: 2, employeeId: 200, role: EmployeeRole.JUNIOR }),
 				],
 			});
-			const bonusPrize = fakeBonusPrize({ rank: 1, eligibleCounts: BonusEligibleCounts.create(5) });
+			const bonusPrize = fakeBonusPrize({ rank: PrizeRank.create(5, 1), eligibleCounts: BonusEligibleCounts.create(5) });
 
 			expect(() => raffle.addBonusPrize(bonusPrize)).toThrow(InsufficientEmployeesError);
 		});
@@ -308,7 +332,7 @@ describe('Raffle', () => {
 		});
 
 		it('should throw InvalidWinnerCountError for wrong counts', () => {
-			const prize = fakePrize({ rank: 1, eligibleCounts: RegularEligibleCounts.create(2, 1) });
+			const prize = fakePrize({ rank: PrizeRank.create(1, 1), eligibleCounts: RegularEligibleCounts.create(2, 1) });
 			const raffle = fakeRaffle({
 				prizes: [prize],
 				status: RaffleStatus.READY,
@@ -327,7 +351,7 @@ describe('Raffle', () => {
 		});
 
 		it('should record correct drawnGroup for winners', () => {
-			const prize = fakePrize({ id: 42, rank: 1, eligibleCounts: RegularEligibleCounts.create(1, 1) });
+			const prize = fakePrize({ id: 42, rank: PrizeRank.create(1, 1), eligibleCounts: RegularEligibleCounts.create(1, 1) });
 			const raffle = fakeRaffle({
 				prizes: [prize],
 				status: RaffleStatus.READY,
@@ -348,7 +372,7 @@ describe('Raffle', () => {
 		});
 
 		it('should mark prize as drawn and create winners', () => {
-			const prize = fakePrize({ id: 42, rank: 1, eligibleCounts: RegularEligibleCounts.create(1, 1) });
+			const prize = fakePrize({ id: 42, rank: PrizeRank.create(1, 1), eligibleCounts: RegularEligibleCounts.create(1, 1) });
 			const raffle = fakeRaffle({
 				prizes: [prize],
 				status: RaffleStatus.READY,
@@ -373,7 +397,7 @@ describe('Raffle', () => {
 
 	describe('draw (using participants)', () => {
 		it('should draw from participants', () => {
-			const prize = fakePrize({ id: 1, rank: 1, eligibleCounts: RegularEligibleCounts.create(1, 1) });
+			const prize = fakePrize({ id: 1, rank: PrizeRank.create(1, 1), eligibleCounts: RegularEligibleCounts.create(1, 1) });
 			const raffle = fakeRaffle({
 				prizes: [prize],
 				status: RaffleStatus.READY,
@@ -395,8 +419,8 @@ describe('Raffle', () => {
 		});
 
 		it('should exclude already-won participants from candidates', () => {
-			const prize1 = fakePrize({ id: 1, rank: 1, eligibleCounts: RegularEligibleCounts.create(1, 0) });
-			const prize2 = fakePrize({ id: 2, rank: 2, eligibleCounts: RegularEligibleCounts.create(1, 0) });
+			const prize1 = fakePrize({ id: 1, rank: PrizeRank.create(1, 1), eligibleCounts: RegularEligibleCounts.create(1, 0) });
+			const prize2 = fakePrize({ id: 2, rank: PrizeRank.create(1, 2), eligibleCounts: RegularEligibleCounts.create(1, 0) });
 			const raffle = fakeRaffle({
 				prizes: [prize1, prize2],
 				status: RaffleStatus.READY,
@@ -421,8 +445,8 @@ describe('Raffle', () => {
 		});
 
 		it('should throw ParticipantAlreadyWonError if lottery returns already-won participant', () => {
-			const prize1 = fakePrize({ id: 1, rank: 1, eligibleCounts: RegularEligibleCounts.create(1, 0) });
-			const prize2 = fakePrize({ id: 2, rank: 2, eligibleCounts: RegularEligibleCounts.create(1, 1) });
+			const prize1 = fakePrize({ id: 1, rank: PrizeRank.create(1, 1), eligibleCounts: RegularEligibleCounts.create(1, 0) });
+			const prize2 = fakePrize({ id: 2, rank: PrizeRank.create(1, 2), eligibleCounts: RegularEligibleCounts.create(1, 1) });
 			const raffle = fakeRaffle({
 				prizes: [prize1, prize2],
 				status: RaffleStatus.READY,
@@ -444,8 +468,8 @@ describe('Raffle', () => {
 		});
 
 		it('should accumulate winners across multiple draws', () => {
-			const prize1 = fakePrize({ id: 1, rank: 1, eligibleCounts: RegularEligibleCounts.create(1, 0) });
-			const prize2 = fakePrize({ id: 2, rank: 2, eligibleCounts: RegularEligibleCounts.create(0, 1) });
+			const prize1 = fakePrize({ id: 1, rank: PrizeRank.create(1, 1), eligibleCounts: RegularEligibleCounts.create(1, 0) });
+			const prize2 = fakePrize({ id: 2, rank: PrizeRank.create(1, 2), eligibleCounts: RegularEligibleCounts.create(0, 1) });
 			const raffle = fakeRaffle({
 				prizes: [prize1, prize2],
 				status: RaffleStatus.READY,
@@ -466,7 +490,7 @@ describe('Raffle', () => {
 
 	describe('immutability', () => {
 		it('should not modify original raffle after draw', () => {
-			const prize = fakePrize({ rank: 1, eligibleCounts: RegularEligibleCounts.create(1, 1) });
+			const prize = fakePrize({ rank: PrizeRank.create(1, 1), eligibleCounts: RegularEligibleCounts.create(1, 1) });
 			const raffle = fakeRaffle({
 				prizes: [prize],
 				status: RaffleStatus.READY,
@@ -492,7 +516,7 @@ describe('Raffle', () => {
 				status: RaffleStatus.BONUS,
 				participants: [fakeParticipant({ id: 1, employeeId: 100, role: EmployeeRole.SENIOR })],
 			});
-			const bonusPrize = fakeBonusPrize({ rank: 1, eligibleCounts: BonusEligibleCounts.create(1) });
+			const bonusPrize = fakeBonusPrize({ rank: PrizeRank.create(5, 1), eligibleCounts: BonusEligibleCounts.create(1) });
 
 			raffle.addBonusPrize(bonusPrize);
 

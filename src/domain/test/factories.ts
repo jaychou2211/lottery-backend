@@ -2,7 +2,7 @@ import { faker } from '@faker-js/faker';
 import type { Employee } from '../employee';
 import { Raffle, RafflePrize, RaffleParticipant, WinnerRecord } from '../raffle';
 import type { LotteryStrategy, WinnerInput, PersistedPrize, PersistedBonusPrize, PersistedParticipant } from '../raffle';
-import { RegularEligibleCounts, BonusEligibleCounts, RaffleStatus, EmployeeRole, DrawnGroup } from '../shared';
+import { RegularEligibleCounts, BonusEligibleCounts, RaffleStatus, EmployeeRole, DrawnGroup, PrizeRank } from '../shared';
 import type { EligibleCounts } from '../shared';
 
 /**
@@ -25,13 +25,15 @@ export function fakeEmployee(overrides: Partial<Employee> = {}): Employee {
  * @see {@link RafflePrize}
  */
 export function fakePrize(
-	overrides: Partial<Parameters<typeof RafflePrize.create>[0]> = {},
+	overrides: Partial<Omit<Parameters<typeof RafflePrize.create>[0], 'rank'>> & { rank?: PrizeRank } = {},
 ): PersistedPrize {
 	return RafflePrize.create({
 		id: faker.number.int({ min: 1 }),
-		rank: faker.number.int({ min: 1, max: 50 }),
+		rank: overrides.rank ?? PrizeRank.create(
+			faker.number.int({ min: 1, max: 5 }),
+			faker.number.int({ min: 1, max: 10 }),
+		),
 		name: faker.commerce.productName(),
-		prizeLevel: faker.word.noun(),
 		eligibleCounts: RegularEligibleCounts.create(4, 2),
 		imageUrl: faker.image.url(),
 		...overrides,
@@ -42,15 +44,15 @@ export function fakePrize(
  * Factory for creating test bonus prize (persisted).
  */
 export function fakeBonusPrize(
-	overrides: Partial<Omit<Parameters<typeof RafflePrize.create>[0], 'eligibleCounts'>> & {
+	overrides: Partial<Omit<Parameters<typeof RafflePrize.create>[0], 'eligibleCounts' | 'rank'>> & {
 		eligibleCounts?: BonusEligibleCounts;
+		rank?: PrizeRank;
 	} = {},
 ): PersistedBonusPrize {
 	return RafflePrize.create({
 		id: faker.number.int({ min: 1 }),
-		rank: faker.number.int({ min: 1, max: 50 }),
+		rank: overrides.rank ?? PrizeRank.create(5, faker.number.int({ min: 1, max: 10 })),
 		name: faker.commerce.productName(),
-		prizeLevel: faker.word.noun(),
 		eligibleCounts: overrides.eligibleCounts ?? BonusEligibleCounts.create(3),
 		imageUrl: faker.image.url(),
 		...overrides,
@@ -123,5 +125,5 @@ export function fakeParticipant(
 /**
  * Re-export commonly used types and values for convenience in tests.
  */
-export { RegularEligibleCounts, BonusEligibleCounts, RaffleStatus, EmployeeRole, DrawnGroup };
+export { RegularEligibleCounts, BonusEligibleCounts, RaffleStatus, EmployeeRole, DrawnGroup, PrizeRank };
 export type { EligibleCounts };

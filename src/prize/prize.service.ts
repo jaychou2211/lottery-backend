@@ -29,7 +29,7 @@ export class PrizeService {
 
 	async create(data: {
 		name: string;
-		prizeLevel: string;
+		rank: string;
 		imageUrl: string;
 		senior: number;
 		junior: number;
@@ -41,7 +41,7 @@ export class PrizeService {
 		id: number,
 		data: Partial<{
 			name: string;
-			prizeLevel: string;
+			rank: string;
 			imageUrl: string;
 			senior: number;
 			junior: number;

@@ -3,7 +3,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { RaffleRepository } from './raffle.repository';
 import { Raffle } from '../domain/raffle';
 import { RafflePrize, type PersistedBonusPrize, type PersistedPrize } from '../domain/raffle/raffle-prize';
-import { BonusEligibleCounts, RegularEligibleCounts } from '../domain/shared';
+import { BonusEligibleCounts, RegularEligibleCounts, PrizeRank } from '../domain/shared';
 import { DomainError } from '../domain/shared/domain-error';
 import { EmployeeService } from '../employee';
 import { PrizeService } from '../prize';
@@ -57,12 +57,11 @@ export class RaffleService {
 
 		// 4. Convert prize templates to raffle prizes
 		if (prizeTemplates.length > 0) {
-			const rafflePrizes = prizeTemplates.map((template, index) =>
+			const rafflePrizes = prizeTemplates.map((template) =>
 				RafflePrize.create({
 					id: -1, // Temporary, will be replaced by DB
-					rank: index + 1, // Rank by order
+					rank: PrizeRank.fromString(template.rank),
 					name: template.name,
-					prizeLevel: template.prizeLevel,
 					imageUrl: template.imageUrl,
 					eligibleCounts: RegularEligibleCounts.create(template.senior, template.junior),
 					prizeTemplateId: template.id,
@@ -121,7 +120,6 @@ export class RaffleService {
 		raffleId: number,
 		prize: {
 			name: string;
-			prizeLevel: string;
 			imageUrl: string;
 			total: number;
 			prizeTemplateId?: number;
@@ -130,12 +128,11 @@ export class RaffleService {
 		const raffle = await this.findById(raffleId);
 		try {
 			// Create bonus prize (id will be assigned by DB, use temp id for type safety)
-			// Rank is set to 1 as placeholder; Raffle.addBonusPrize will reassign it
+			// Rank is set to placeholder; Raffle.addBonusPrize will reassign it
 			const bonusPrize = RafflePrize.create({
 				id: -1, // Temporary, will be replaced by DB
-				rank: 1, // Placeholder, will be auto-assigned by Raffle.addBonusPrize
+				rank: PrizeRank.create(5, 1), // Placeholder, will be auto-assigned by Raffle.addBonusPrize
 				name: prize.name,
-				prizeLevel: prize.prizeLevel,
 				imageUrl: prize.imageUrl,
 				eligibleCounts: BonusEligibleCounts.create(prize.total),
 				prizeTemplateId: prize.prizeTemplateId,

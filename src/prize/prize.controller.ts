@@ -19,6 +19,8 @@ import {
 
 import { CreatePrizeDto, PrizeResponseDto, UpdatePrizeDto } from './dto';
 import { PrizeService } from './prize.service';
+import type { PrizeTemplate } from '../domain/prize-template';
+import { PrizeRank } from '../domain/shared';
 
 @ApiTags('Prizes')
 @Controller('prizes')
@@ -29,14 +31,16 @@ export class PrizeController {
 	@ApiOperation({ summary: 'Create a new prize template' })
 	@ApiResponse({ status: 201, type: PrizeResponseDto })
 	async create(@Body() dto: CreatePrizeDto): Promise<PrizeResponseDto> {
-		return this.service.create(dto);
+		const prize = await this.service.create(dto);
+		return this.toResponse(prize);
 	}
 
 	@Get()
 	@ApiOperation({ summary: 'List all prize templates' })
 	@ApiResponse({ status: 200, type: [PrizeResponseDto] })
 	async findAll(): Promise<PrizeResponseDto[]> {
-		return this.service.findAll();
+		const prizes = await this.service.findAll();
+		return prizes.map((p) => this.toResponse(p));
 	}
 
 	@Get(':id')
@@ -44,7 +48,8 @@ export class PrizeController {
 	@ApiResponse({ status: 200, type: PrizeResponseDto })
 	@ApiNotFoundResponse({ description: 'Prize template not found' })
 	async findById(@Param('id', ParseIntPipe) id: number): Promise<PrizeResponseDto> {
-		return this.service.findById(id);
+		const prize = await this.service.findById(id);
+		return this.toResponse(prize);
 	}
 
 	@Patch(':id')
@@ -55,7 +60,8 @@ export class PrizeController {
 		@Param('id', ParseIntPipe) id: number,
 		@Body() dto: UpdatePrizeDto,
 	): Promise<PrizeResponseDto> {
-		return this.service.update(id, dto);
+		const prize = await this.service.update(id, dto);
+		return this.toResponse(prize);
 	}
 
 	@Delete(':id')
@@ -65,5 +71,18 @@ export class PrizeController {
 	@ApiNotFoundResponse({ description: 'Prize template not found' })
 	async delete(@Param('id', ParseIntPipe) id: number): Promise<void> {
 		return this.service.delete(id);
+	}
+
+	private toResponse(prize: PrizeTemplate): PrizeResponseDto {
+		const rank = PrizeRank.fromString(prize.rank);
+		return {
+			id: prize.id,
+			name: prize.name,
+			rank: prize.rank,
+			prizeLevel: rank.levelName,
+			imageUrl: prize.imageUrl,
+			senior: prize.senior,
+			junior: prize.junior,
+		};
 	}
 }

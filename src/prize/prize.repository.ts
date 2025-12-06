@@ -37,14 +37,14 @@ export class PrizeRepository {
 
 	async create(data: {
 		name: string;
-		prizeLevel: string;
+		rank: string;
 		imageUrl: string;
 		senior: number;
 		junior: number;
 	}): Promise<PrizeTemplate> {
 		const newPrize: NewPrizeTemplate = {
 			name: data.name,
-			prize_level: data.prizeLevel,
+			rank: data.rank,
 			image_url: data.imageUrl,
 			senior: data.senior,
 			junior: data.junior,
@@ -67,7 +67,7 @@ export class PrizeRepository {
 		id: number,
 		data: Partial<{
 			name: string;
-			prizeLevel: string;
+			rank: string;
 			imageUrl: string;
 			senior: number;
 			junior: number;
@@ -76,7 +76,7 @@ export class PrizeRepository {
 		const updateData: PrizeTemplateUpdate = {};
 
 		if (data.name !== undefined) updateData.name = data.name;
-		if (data.prizeLevel !== undefined) updateData.prize_level = data.prizeLevel;
+		if (data.rank !== undefined) updateData.rank = data.rank;
 		if (data.imageUrl !== undefined) updateData.image_url = data.imageUrl;
 		if (data.senior !== undefined) updateData.senior = data.senior;
 		if (data.junior !== undefined) updateData.junior = data.junior;
@@ -116,7 +116,7 @@ export class PrizeRepository {
 		return {
 			id: row.id,
 			name: row.name,
-			prizeLevel: row.prize_level,
+			rank: row.rank,
 			imageUrl: row.image_url,
 			senior: row.senior,
 			junior: row.junior,

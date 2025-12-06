@@ -3,6 +3,10 @@ export class PrizeResponseDto {
 
 	name: string;
 
+	/** Prize rank in format "{level}-{sequence}" */
+	rank: string;
+
+	/** Prize level display name (derived from rank) */
 	prizeLevel: string;
 
 	imageUrl: string;

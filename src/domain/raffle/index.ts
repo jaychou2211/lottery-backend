@@ -1,6 +1,6 @@
 export { Raffle } from './raffle';
 export type { RaffleProps } from './raffle';
-export { RafflePrize, InvalidPrizeRankError, EmptyPrizeNameError } from './raffle-prize';
+export { RafflePrize, EmptyPrizeNameError } from './raffle-prize';
 export type { RafflePrizeProps, RafflePrizeError, PersistedPrize, RegularPrize, BonusPrize, PersistedBonusPrize } from './raffle-prize';
 export { RaffleParticipant } from './raffle-participant';
 export type { RaffleParticipantProps, PersistedParticipant } from './raffle-participant';

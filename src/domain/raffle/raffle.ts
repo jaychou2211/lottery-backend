@@ -1,5 +1,5 @@
 import type { Employee } from '../employee';
-import { RaffleStatus, DrawnGroup, EmployeeRole } from '../shared';
+import { RaffleStatus, DrawnGroup, EmployeeRole, PrizeRank } from '../shared';
 import {
 	InvalidStatusTransitionError,
 	NoPrizeToDrawError,
@@ -38,7 +38,17 @@ export class Raffle {
 		public readonly winners: readonly WinnerRecord[],
 	) {}
 
+	/**
+	 * Creates a Raffle with validation.
+	 *
+	 * @throws NonConsecutiveSequenceError if prize ranks have gaps in sequences within any level
+	 * @throws SequenceNotStartingFromOneError if any level's sequences don't start from 1
+	 */
 	static create(props: RaffleProps): Raffle {
+		// Validate prize ranks have consecutive sequences per level
+		const ranks = props.prizes.map((p) => p.rank);
+		PrizeRank.validateConsecutiveSequences(ranks);
+
 		return new Raffle(
 			props.id,
 			props.name,
@@ -148,9 +158,14 @@ export class Raffle {
 		);
 	}
 
-	private getNextBonusRank(): number {
-		const maxRank = this.prizes.reduce((max, p) => Math.max(max, p.rank), 0);
-		return maxRank + 1;
+	/**
+	 * Get the next bonus rank.
+	 * Bonus prizes continue the sequence of level 5 after all existing prizes.
+	 */
+	private getNextBonusRank(): PrizeRank {
+		const level5Prizes = this.prizes.filter((p) => p.rank.level === 5);
+		const maxSequence = level5Prizes.reduce((max, p) => Math.max(max, p.rank.sequence), 0);
+		return PrizeRank.create(5, maxSequence + 1);
 	}
 
 	/**
@@ -181,7 +196,7 @@ export class Raffle {
 	}
 
 	private get sortedPrizes(): readonly PersistedPrize[] {
-		return [...this.prizes].sort((a, b) => a.rank - b.rank);
+		return [...this.prizes].sort((a, b) => a.rank.compareTo(b.rank));
 	}
 
 	/**
@@ -194,12 +209,12 @@ export class Raffle {
 		return this.sortedPrizes.filter((p) => p.isBonus() === shouldDrawBonus);
 	}
 
-	private getNextDrawableRank(): number | null {
+	private getNextDrawableRank(): PrizeRank | null {
 		return this.drawablePrizes.find((p) => !p.isDrawn)?.rank ?? null;
 	}
 
-	getPrizeByRank(rank: number): PersistedPrize | undefined {
-		return this.prizes.find((p) => p.rank === rank);
+	getPrizeByRank(rank: PrizeRank): PersistedPrize | undefined {
+		return this.prizes.find((p) => p.rank.equals(rank));
 	}
 
 	hasParticipantWon(participantId: number): boolean {
@@ -272,7 +287,7 @@ export class Raffle {
 		}
 
 		const updatedPrizes = this.prizes.map((p) =>
-			p.rank === rank ? p.markAsDrawn() : p,
+			p.rank.equals(rank) ? p.markAsDrawn() : p,
 		);
 
 		const now = new Date();
