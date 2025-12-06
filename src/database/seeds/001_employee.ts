@@ -33,7 +33,9 @@ function generateEmployees(count: number) {
 }
 
 export async function seed(db: Kysely<Database>): Promise<void> {
-	const employees = generateEmployees(200);
+	// Prize templates require: 113 senior, 68 junior
+	// Generate extra buffer for safety
+	const employees = generateEmployees(300);
 
 	await db
 		.insertInto('employee')
