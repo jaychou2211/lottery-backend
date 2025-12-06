@@ -1,5 +1,5 @@
-import type { EligibleCounts, DrawnGroup } from '../shared';
-import type { PersistedParticipant } from './raffle-participant';
+import type { DrawnGroup, EligibleCounts } from '../shared';
+import type { EligibilityPool } from './eligibility-pool';
 
 export interface WinnerInput {
 	participantId: number;
@@ -7,12 +7,10 @@ export interface WinnerInput {
 }
 
 /**
- * Strategy for selecting winners from candidates.
+ * Strategy for selecting winners from the eligibility pool.
  * Can be injected for testing purposes.
- *
- * Note: Candidates are guaranteed to be persisted (have valid IDs).
  */
 export type LotteryStrategy = (
-	candidates: readonly PersistedParticipant[],
+	pool: EligibilityPool,
 	eligibleCounts: EligibleCounts,
 ) => WinnerInput[];
