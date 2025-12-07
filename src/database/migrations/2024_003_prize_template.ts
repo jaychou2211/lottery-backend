@@ -10,15 +10,15 @@ import { sql } from 'kysely';
 export async function up(db: Kysely<unknown>): Promise<void> {
 	await db.schema
 		.createTable('prize_template')
-		.addColumn('id', 'integer', (col) => col.primaryKey().autoIncrement())
+		.addColumn('id', 'serial', (col) => col.primaryKey())
 		.addColumn('name', 'varchar(100)', (col) => col.notNull())
 		.addColumn('rank', 'varchar(10)', (col) => col.notNull())
 		.addColumn('image_url', 'varchar(500)', (col) => col.notNull())
 		.addColumn('senior', 'integer', (col) => col.notNull())
 		.addColumn('junior', 'integer', (col) => col.notNull())
-		.addColumn('created_at', 'datetime', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
-		.addColumn('updated_at', 'datetime', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
-		.addColumn('deleted_at', 'datetime')
+		.addColumn('created_at', 'timestamptz', (col) => col.notNull().defaultTo(sql`now()`))
+		.addColumn('updated_at', 'timestamptz', (col) => col.notNull().defaultTo(sql`now()`))
+		.addColumn('deleted_at', 'timestamptz')
 		.execute();
 }
 

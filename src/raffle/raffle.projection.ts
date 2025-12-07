@@ -343,7 +343,7 @@ export class RaffleProjection {
 						senior: row.eligible_senior ?? 0,
 						junior: row.eligible_junior ?? 0,
 					},
-				isDrawn: row.is_drawn === 1,
+				isDrawn: row.is_drawn,
 				prizeTemplateId: row.prize_template_id,
 			};
 		});

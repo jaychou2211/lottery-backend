@@ -10,10 +10,10 @@ import { sql } from 'kysely';
 export async function up(db: Kysely<unknown>): Promise<void> {
 	await db.schema
 		.createTable('_smoke_test')
-		.addColumn('id', 'integer', (col) => col.primaryKey().autoIncrement())
+		.addColumn('id', 'serial', (col) => col.primaryKey())
 		.addColumn('attr1', 'varchar(255)', (col) => col.notNull())
 		.addColumn('attr2', 'varchar(255)')
-		.addColumn('created_at', 'datetime', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+		.addColumn('created_at', 'timestamptz', (col) => col.notNull().defaultTo(sql`now()`))
 		.execute();
 }
 

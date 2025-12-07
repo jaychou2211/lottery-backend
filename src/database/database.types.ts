@@ -121,7 +121,7 @@ export interface RafflePrizeTable {
 	eligible_total: number;
 	eligible_senior: number | null;
 	eligible_junior: number | null;
-	is_drawn: number; // SQLite boolean
+	is_drawn: boolean;
 	created_at: ColumnType<string, string | undefined, never>;
 }
 

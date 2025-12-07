@@ -6,6 +6,8 @@ export default defineConfig({
 		globals: true,
 		root: './',
 		include: ['**/*.spec.ts', '**/*.e2e-spec.ts'],
+		hookTimeout: 60000,
+		testTimeout: 30000,
 		coverage: {
 			provider: 'v8',
 			reporter: ['text', 'json', 'html'],

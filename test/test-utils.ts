@@ -2,9 +2,10 @@ import type { INestApplication } from '@nestjs/common';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { Test, type TestingModule } from '@nestjs/testing';
-import type BetterSqlite3 from 'better-sqlite3';
+import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import type { Kysely } from 'kysely';
-import { SqliteDialect, Kysely as KyselyClass } from 'kysely';
+import { Kysely as KyselyClass, PostgresDialect } from 'kysely';
+import { Pool } from 'pg';
 
 import { AppController } from '../src/app.controller';
 import { AppService } from '../src/app.service';
@@ -18,21 +19,26 @@ import { EmployeeModule } from '../src/employee';
 import { PrizeModule } from '../src/prize';
 import { RaffleModule } from '../src/raffle';
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const Database = require('better-sqlite3') as typeof BetterSqlite3;
+let container: StartedPostgreSqlContainer | null = null;
 
 /**
- * Creates an in-memory SQLite database for testing.
- * Each call creates a fresh, isolated database instance.
+ * Starts a PostgreSQL container for testing using Testcontainers.
+ * Container is reused across tests in the same test suite.
  */
-function createInMemoryDatabase(): KyselyDatabase {
-	const sqliteDb = new Database(':memory:');
-	sqliteDb.pragma('foreign_keys = ON');
+async function startTestContainer(): Promise<StartedPostgreSqlContainer> {
+	if (!container) {
+		container = await new PostgreSqlContainer('postgres:17-alpine').start();
+	}
+	return container;
+}
 
+/**
+ * Creates a Kysely database instance connected to the test container.
+ */
+function createTestDatabase(connectionUri: string): KyselyDatabase {
+	const pool = new Pool({ connectionString: connectionUri });
 	return new KyselyClass<DB>({
-		dialect: new SqliteDialect({
-			database: sqliteDb,
-		}),
+		dialect: new PostgresDialect({ pool }),
 	});
 }
 
@@ -84,11 +90,13 @@ export interface TestApp {
 }
 
 /**
- * Creates a test application with an isolated in-memory database.
+ * Creates a test application with an isolated PostgreSQL container.
  * Use this for e2e tests to avoid conflicts with development database.
  */
 export async function createTestApp(): Promise<TestApp> {
-	const db = createInMemoryDatabase();
+	const pgContainer = await startTestContainer();
+	const db = createTestDatabase(pgContainer.getConnectionUri());
+
 	await runMigrations(db);
 	await seedTestData(db);
 
@@ -129,4 +137,15 @@ export async function createTestApp(): Promise<TestApp> {
 export async function closeTestApp(testApp: TestApp): Promise<void> {
 	await testApp.app.close();
 	await testApp.db.destroy();
+}
+
+/**
+ * Stops the PostgreSQL container.
+ * Call this in afterAll() of your test suite.
+ */
+export async function stopTestContainer(): Promise<void> {
+	if (container) {
+		await container.stop();
+		container = null;
+	}
 }

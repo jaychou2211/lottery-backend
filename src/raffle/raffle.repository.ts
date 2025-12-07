@@ -112,7 +112,7 @@ export class RaffleRepository {
 			eligible_total: t.senior + t.junior,
 			eligible_senior: t.senior,
 			eligible_junior: t.junior,
-			is_drawn: 0,
+			is_drawn: false,
 		}));
 
 		await trx.insertInto('raffle_prize').values(prizes).execute();
@@ -201,10 +201,10 @@ export class RaffleRepository {
 			const existing = existingMap.get(rankStr);
 
 			if (existing) {
-				if ((existing.is_drawn === 1) !== prize.isDrawn) {
+				if (existing.is_drawn !== prize.isDrawn) {
 					await trx
 						.updateTable('raffle_prize')
-						.set({ is_drawn: prize.isDrawn ? 1 : 0 })
+						.set({ is_drawn: prize.isDrawn })
 						.where('id', '=', existing.id)
 						.execute();
 				}
@@ -219,7 +219,7 @@ export class RaffleRepository {
 					eligible_total: prize.eligibleCounts.total,
 					eligible_senior: prize.eligibleCounts.isRegular() ? prize.eligibleCounts.senior : null,
 					eligible_junior: prize.eligibleCounts.isRegular() ? prize.eligibleCounts.junior : null,
-					is_drawn: prize.isDrawn ? 1 : 0,
+					is_drawn: prize.isDrawn,
 				};
 				await trx.insertInto('raffle_prize').values(newPrize).execute();
 			}
@@ -250,7 +250,7 @@ export class RaffleRepository {
 			name: row.name,
 			imageUrl: row.image_url,
 			eligibleCounts,
-			isDrawn: row.is_drawn === 1,
+			isDrawn: row.is_drawn,
 			prizeTemplateId: row.prize_template_id ?? undefined,
 		});
 	}
