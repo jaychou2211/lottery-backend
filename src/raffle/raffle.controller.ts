@@ -19,6 +19,7 @@ import {
 	ApiOperation,
 	ApiCreatedResponse,
 	ApiNoContentResponse,
+	ApiQuery,
 	ApiTags,
 } from '@nestjs/swagger';
 
@@ -60,6 +61,12 @@ export class RaffleController {
 
 	@Get()
 	@ApiOperation({ summary: 'List all raffles' })
+	@ApiQuery({
+		name: 'status',
+		required: false,
+		description: 'Filter by raffle status',
+		enum: ['DRAFT', 'READY', 'COMPLETED'],
+	})
 	@ApiOkResponse({ description: 'List of raffles', type: [RaffleListItemResponseDto] })
 	async getList(@Query('status') status?: string): Promise<RaffleListItemDto[]> {
 		return this.service.getList(status ? { status: status as RaffleStatus } : undefined);
@@ -67,6 +74,13 @@ export class RaffleController {
 
 	@Get(':id')
 	@ApiOperation({ summary: 'Get a raffle by ID' })
+	@ApiQuery({
+		name: 'include',
+		required: false,
+		description: 'Comma-separated fields to include in response',
+		enum: ['participants', 'prizes', 'winners'],
+		schema: { type: 'string' },
+	})
 	@ApiOkResponse({ description: 'Raffle details', type: RaffleDetailResponseDto })
 	@ApiNotFoundResponse({ description: 'Raffle not found', type: ErrorResponseDto })
 	async getDetail(
