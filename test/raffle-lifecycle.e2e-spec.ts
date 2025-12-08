@@ -81,15 +81,11 @@ describe('Raffle Lifecycle (e2e)', () => {
 		expect(detailResponse.body.status).toBe('DRAFT');
 
 		expect(detailResponse.body.participants.length).toBe(employeeCount);
-		expect(detailResponse.body.prizes.length).toBe(prizeCount);
-		expect(detailResponse.body.winners).toEqual([]);
+		// drawResults should be empty (no prizes drawn yet)
+		expect(detailResponse.body.drawResults).toEqual({});
 
 		detailResponse.body.participants.forEach((p: { tags: string[] }) => {
 			expect(p.tags).toEqual([]);
-		});
-
-		detailResponse.body.prizes.forEach((p: { isDrawn: boolean }) => {
-			expect(p.isDrawn).toBe(false);
 		});
 	});
 
@@ -206,19 +202,23 @@ describe('Raffle Lifecycle (e2e)', () => {
 		expect(response.status).toBe(200);
 		expect(response.body.status).toBe('COMPLETED');
 		expect(response.body.participants.length).toBe(employeeCount);
-		expect(response.body.prizes.length).toBe(prizeCount);
 
-		response.body.prizes.forEach((p: { isDrawn: boolean }) => {
-			expect(p.isDrawn).toBe(true);
-		});
+		// All prizes should be in drawResults (keyed by rank)
+		const drawResults = response.body.drawResults as Record<string, { winners: { participantId: number }[] }>;
+		const drawnRanks = Object.keys(drawResults);
+		expect(drawnRanks.length).toBe(prizeCount);
 
-		expect(response.body.winners.length).toBeGreaterThan(0);
+		// Collect all winner participant IDs across all prizes
+		const allWinnerIds: number[] = [];
+		for (const rank of drawnRanks) {
+			const result = drawResults[rank];
+			expect(result.winners.length).toBeGreaterThan(0);
+			allWinnerIds.push(...result.winners.map((w) => w.participantId));
+		}
 
-		const winnerParticipantIds = response.body.winners.map(
-			(w: { participantId: number }) => w.participantId,
-		);
-		const uniqueWinnerIds = new Set(winnerParticipantIds);
-		expect(uniqueWinnerIds.size).toBe(winnerParticipantIds.length);
+		// Ensure no duplicate winners
+		const uniqueWinnerIds = new Set(allWinnerIds);
+		expect(uniqueWinnerIds.size).toBe(allWinnerIds.length);
 
 		/* eslint-disable no-console */
 		console.log('\n========================================');
@@ -227,8 +227,8 @@ describe('Raffle Lifecycle (e2e)', () => {
 		console.log(`Raffle: ${response.body.name}`);
 		console.log(`Status: ${response.body.status}`);
 		console.log(`Participants: ${response.body.participants.length}`);
-		console.log(`Prizes: ${response.body.prizes.length}`);
-		console.log(`Winners: ${response.body.winners.length}`);
+		console.log(`Prizes drawn: ${drawnRanks.length}`);
+		console.log(`Total winners: ${allWinnerIds.length}`);
 		console.log('========================================\n');
 		/* eslint-enable no-console */
 	});

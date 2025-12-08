@@ -34,22 +34,6 @@ export interface ParticipantDto {
 	tags: string[];
 }
 
-export interface PrizeDto {
-	id: number;
-	rank: string;
-	name: string;
-	prizeLevel: string;
-	imageUrl: string;
-	eligibleCounts: {
-		kind: 'regular' | 'bonus';
-		total: number;
-		senior?: number;
-		junior?: number;
-	};
-	isDrawn: boolean;
-	prizeTemplateId: number | null;
-}
-
 export interface BonusPrizeDto {
 	id: number;
 	rank: string;
@@ -61,21 +45,12 @@ export interface BonusPrizeDto {
 	};
 }
 
-export interface WinnerDto {
-	id: number;
-	rafflePrizeId: number;
-	participantId: number;
-	drawnGroup: DrawnGroup;
-	createdAt: string;
-}
-
 export interface RaffleDetailDto {
 	id: number;
 	name: string;
 	status: RaffleStatus;
 	participants?: ParticipantDto[];
-	prizes?: PrizeDto[];
-	winners?: WinnerDto[];
+	drawResults?: Record<string, DrawResultDto>;
 }
 
 export interface DrawResultWinnerDto {
@@ -116,7 +91,7 @@ export interface ParticipantStatusDto {
 	}>;
 }
 
-export type RaffleDetailInclude = 'participants' | 'prizes' | 'winners';
+export type RaffleDetailInclude = 'participants' | 'drawResults';
 
 export interface RaffleDetailOptions {
 	include?: RaffleDetailInclude[];
@@ -178,7 +153,7 @@ export class RaffleProjection {
 
 		if (!raffle) return null;
 
-		const include = options?.include ?? ['participants', 'prizes', 'winners'];
+		const include = options?.include ?? ['participants', 'drawResults'];
 
 		const result: RaffleDetailDto = {
 			id: raffle.id,
@@ -190,12 +165,8 @@ export class RaffleProjection {
 			result.participants = await this.getParticipants(id);
 		}
 
-		if (include.includes('prizes')) {
-			result.prizes = await this.getPrizes(id);
-		}
-
-		if (include.includes('winners')) {
-			result.winners = await this.getWinners(id);
+		if (include.includes('drawResults')) {
+			result.drawResults = await this.getDrawResults(id);
 		}
 
 		return result;
@@ -319,50 +290,73 @@ export class RaffleProjection {
 		}));
 	}
 
-	private async getPrizes(raffleId: number): Promise<PrizeDto[]> {
-		const rows = await this.db
+	private async getDrawResults(raffleId: number): Promise<Record<string, DrawResultDto>> {
+		// Get all drawn prizes with their winners
+		const drawnPrizes = await this.db
 			.selectFrom('raffle_prize')
-			.selectAll()
+			.select(['id', 'rank', 'name', 'image_url'])
 			.where('raffle_id', '=', raffleId)
+			.where('is_drawn', '=', true)
 			.orderBy('rank')
 			.execute();
 
-		return rows.map((row) => {
-			const prizeRank = PrizeRank.fromString(row.rank);
-			return {
-				id: row.id,
-				rank: row.rank,
-				name: row.name,
-				prizeLevel: prizeRank.levelName,
-				imageUrl: row.image_url,
-				eligibleCounts: row.eligible_kind === 'bonus'
-					? { kind: 'bonus' as const, total: row.eligible_total }
-					: {
-						kind: 'regular' as const,
-						total: row.eligible_total,
-						senior: row.eligible_senior ?? 0,
-						junior: row.eligible_junior ?? 0,
-					},
-				isDrawn: row.is_drawn,
-				prizeTemplateId: row.prize_template_id,
-			};
-		});
-	}
+		if (drawnPrizes.length === 0) {
+			return {};
+		}
 
-	private async getWinners(raffleId: number): Promise<WinnerDto[]> {
-		const rows = await this.db
+		const prizeIds = drawnPrizes.map((p) => p.id);
+
+		const winners = await this.db
 			.selectFrom('winner_record')
-			.selectAll()
-			.where('raffle_id', '=', raffleId)
+			.innerJoin('raffle_participant', 'raffle_participant.id', 'winner_record.participant_id')
+			.select([
+				'winner_record.raffle_prize_id',
+				'winner_record.participant_id',
+				'winner_record.drawn_group',
+				'winner_record.created_at',
+				'raffle_participant.staff_number',
+				'raffle_participant.name',
+				'raffle_participant.department',
+				'raffle_participant.role',
+			])
+			.where('winner_record.raffle_prize_id', 'in', prizeIds)
 			.execute();
 
-		return rows.map((row) => ({
-			id: row.id,
-			rafflePrizeId: row.raffle_prize_id,
-			participantId: row.participant_id,
-			drawnGroup: row.drawn_group as DrawnGroup,
-			createdAt: row.created_at,
-		}));
+		// Group winners by prize id
+		const winnersByPrizeId = new Map<number, typeof winners>();
+		for (const winner of winners) {
+			const existing = winnersByPrizeId.get(winner.raffle_prize_id) ?? [];
+			existing.push(winner);
+			winnersByPrizeId.set(winner.raffle_prize_id, existing);
+		}
+
+		// Build Record<rank, DrawResultDto>
+		const result: Record<string, DrawResultDto> = {};
+		for (const prize of drawnPrizes) {
+			const prizeWinners = winnersByPrizeId.get(prize.id) ?? [];
+			const prizeRank = PrizeRank.fromString(prize.rank);
+
+			result[prize.rank] = {
+				winners: prizeWinners.map((w) => ({
+					participantId: w.participant_id,
+					staffNumber: w.staff_number,
+					name: w.name,
+					department: w.department,
+					role: w.role as EmployeeRole,
+					drawnGroup: w.drawn_group as DrawnGroup,
+				})),
+				prize: {
+					id: prize.id,
+					name: prize.name,
+					rank: prize.rank,
+					prizeLevel: prizeRank.levelName,
+					imageUrl: prize.image_url,
+				},
+				drawnAt: prizeWinners[0]?.created_at ?? '',
+			};
+		}
+
+		return result;
 	}
 
 	async getLatestBonusPrize(raffleId: number): Promise<BonusPrizeDto | null> {

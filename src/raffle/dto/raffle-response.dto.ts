@@ -53,63 +53,6 @@ export class ParticipantResponseDto {
 	tags: string[];
 }
 
-export class EligibleCountsResponseDto {
-	@ApiProperty({ enum: ['regular', 'bonus'], example: 'regular' })
-	kind: 'regular' | 'bonus';
-
-	@ApiProperty({ example: 3 })
-	total: number;
-
-	@ApiPropertyOptional({ example: 2 })
-	senior?: number;
-
-	@ApiPropertyOptional({ example: 1 })
-	junior?: number;
-}
-
-export class PrizeResponseDto {
-	@ApiProperty({ example: 1 })
-	id: number;
-
-	@ApiProperty({ description: 'Prize rank in format "{level}-{sequence}"', example: '1-1' })
-	rank: string;
-
-	@ApiProperty({ example: 'iPhone 15 Pro' })
-	name: string;
-
-	@ApiProperty({ description: 'Prize level display name (derived from rank)', example: '特獎' })
-	prizeLevel: string;
-
-	@ApiProperty({ example: 'https://example.com/iphone.jpg' })
-	imageUrl: string;
-
-	@ApiProperty({ type: EligibleCountsResponseDto })
-	eligibleCounts: EligibleCountsResponseDto;
-
-	@ApiProperty({ example: false })
-	isDrawn: boolean;
-
-	@ApiPropertyOptional({ example: 1, nullable: true })
-	prizeTemplateId: number | null;
-}
-
-export class WinnerResponseDto {
-	@ApiProperty({ example: 1 })
-	id: number;
-
-	@ApiProperty({ example: 1 })
-	rafflePrizeId: number;
-
-	@ApiProperty({ example: 42 })
-	participantId: number;
-
-	@ApiProperty({ enum: DrawnGroup, example: DrawnGroup.SENIOR })
-	drawnGroup: DrawnGroup;
-
-	@ApiProperty({ example: '2024-12-06T10:30:00.000Z' })
-	createdAt: string;
-}
-
 export class RaffleDetailResponseDto {
 	@ApiProperty({ example: 1 })
 	id: number;
@@ -123,11 +66,19 @@ export class RaffleDetailResponseDto {
 	@ApiPropertyOptional({ type: [ParticipantResponseDto] })
 	participants?: ParticipantResponseDto[];
 
-	@ApiPropertyOptional({ type: [PrizeResponseDto] })
-	prizes?: PrizeResponseDto[];
-
-	@ApiPropertyOptional({ type: [WinnerResponseDto] })
-	winners?: WinnerResponseDto[];
+	@ApiPropertyOptional({
+		description: 'Draw results keyed by prize rank. Only includes drawn prizes.',
+		type: 'object',
+		additionalProperties: { $ref: '#/components/schemas/DrawResultResponseDto' },
+		example: {
+			'1-1': {
+				winners: [{ participantId: 42, staffNumber: 'EMP001', name: 'John Doe', department: 'Engineering', role: 'SENIOR', drawnGroup: 'SENIOR' }],
+				prize: { id: 1, name: 'iPhone 15 Pro', rank: '1-1', prizeLevel: '特獎', imageUrl: 'https://example.com/iphone.jpg' },
+				drawnAt: '2024-12-06T10:30:00.000Z',
+			},
+		},
+	})
+	drawResults?: Record<string, DrawResultResponseDto>;
 }
 
 // ============================================================
