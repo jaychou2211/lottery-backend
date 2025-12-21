@@ -45,9 +45,9 @@ export class RaffleService {
 		}
 	}
 
-	async draw(id: number): Promise<DrawResultDto> {
+	async draw(id: number, expectedRank: string): Promise<DrawResultDto> {
 		try {
-			await this.repository.execute(id, (raffle) => raffle.draw());
+			await this.repository.execute(id, (raffle) => raffle.draw(expectedRank));
 
 			const result = await this.projection.getLatestDrawResult(id);
 			if (!result) {

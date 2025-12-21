@@ -1,4 +1,5 @@
 import {
+	BadRequestException,
 	Body,
 	Controller,
 	Delete,
@@ -121,12 +122,24 @@ export class RaffleController {
 	@Post(':id/draw')
 	@HttpCode(HttpStatus.OK)
 	@ApiOperation({ summary: 'Draw winners for the next prize' })
+	@ApiQuery({
+		name: 'rank',
+		required: true,
+		description: 'Expected rank to draw (e.g., "1-1"). The draw will fail if the next drawable rank does not match.',
+		example: '1-1',
+	})
 	@ApiOkResponse({ description: 'Draw result', type: DrawResultResponseDto })
 	@ApiNotFoundResponse({ description: 'Raffle not found', type: ErrorResponseDto })
-	@ApiBadRequestResponse({ description: 'No prizes available to draw', type: ErrorResponseDto })
+	@ApiBadRequestResponse({ description: 'No prizes available to draw, unexpected rank, or missing rank parameter', type: ErrorResponseDto })
 	@ApiConflictResponse({ description: 'Concurrent modification detected', type: ErrorResponseDto })
-	async draw(@Param('id', ParseIntPipe) id: number): Promise<DrawResultDto> {
-		return this.service.draw(id);
+	async draw(
+		@Param('id', ParseIntPipe) id: number,
+		@Query('rank') rank: string,
+	): Promise<DrawResultDto> {
+		if (!rank) {
+			throw new BadRequestException('rank parameter is required');
+		}
+		return this.service.draw(id, rank);
 	}
 
 	@Post(':id/bonus-prizes')

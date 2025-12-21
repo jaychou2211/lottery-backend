@@ -16,6 +16,7 @@ describe('Raffle Lifecycle (e2e)', () => {
 	let raffleId: number;
 	let employeeCount: number;
 	let prizeCount: number;
+	let prizeRanks: string[] = [];
 
 	beforeAll(async () => {
 		testApp = await createTestApp();
@@ -56,6 +57,15 @@ describe('Raffle Lifecycle (e2e)', () => {
 		});
 
 		prizeCount = response.body.length;
+
+		// Collect and sort prize ranks for later use in draw operations
+		prizeRanks = response.body
+			.map((p: { rank: string }) => p.rank)
+			.sort((a: string, b: string) => {
+				const [aLevel, aSeq] = a.split('-').map(Number);
+				const [bLevel, bSeq] = b.split('-').map(Number);
+				return aLevel !== bLevel ? aLevel - bLevel : aSeq - bSeq;
+			});
 	});
 
 	// =========================================================
@@ -113,7 +123,7 @@ describe('Raffle Lifecycle (e2e)', () => {
 
 	it('should draw first prize and transition to IN_PROGRESS', async () => {
 		const response = await request(app.getHttpServer())
-			.post(`/raffles/${raffleId}/draw`);
+			.post(`/raffles/${raffleId}/draw?rank=${prizeRanks[0]}`);
 
 		expect(response.status).toBe(200);
 		// DrawResultDto shape: winners[], prize, drawnAt
@@ -121,7 +131,7 @@ describe('Raffle Lifecycle (e2e)', () => {
 		expect(Array.isArray(response.body.winners)).toBe(true);
 		expect(response.body.winners.length).toBeGreaterThan(0);
 		expect(response.body.prize).toBeDefined();
-		expect(response.body.prize.rank).toBe('1-1');
+		expect(response.body.prize.rank).toBe(prizeRanks[0]);
 		// Each winner should have drawnGroup
 		expect(response.body.winners[0].drawnGroup).toBeDefined();
 
@@ -142,7 +152,7 @@ describe('Raffle Lifecycle (e2e)', () => {
 
 		while (currentStatus !== 'BONUS' && drawCount < prizeCount) {
 			const response = await request(app.getHttpServer())
-				.post(`/raffles/${raffleId}/draw`);
+				.post(`/raffles/${raffleId}/draw?rank=${prizeRanks[drawCount]}`);
 
 			expect(response.status).toBe(200);
 			drawCount++;
@@ -187,7 +197,7 @@ describe('Raffle Lifecycle (e2e)', () => {
 		expect(bonusResponse.status).toBe(400);
 
 		const drawResponse = await request(app.getHttpServer())
-			.post(`/raffles/${raffleId}/draw`);
+			.post(`/raffles/${raffleId}/draw?rank=6-1`);
 
 		expect(drawResponse.status).toBe(400);
 	});

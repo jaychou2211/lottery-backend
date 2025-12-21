@@ -105,7 +105,7 @@ describe('Raffle', () => {
 					{ participantId: 2, drawnGroup: DrawnGroup.JUNIOR },
 				]);
 
-				const result = raffle.draw(lottery);
+				const result = raffle.draw('1-1', lottery);
 
 				expect(result.status).toBe(RaffleStatus.IN_PROGRESS);
 			});
@@ -126,13 +126,13 @@ describe('Raffle', () => {
 					eligibilityPool: pool,
 				});
 
-				const inProgress = raffle.draw(fixedLottery([
+				const inProgress = raffle.draw('1-1', fixedLottery([
 					{ participantId: 1, drawnGroup: DrawnGroup.SENIOR },
 					{ participantId: 2, drawnGroup: DrawnGroup.JUNIOR },
 				]));
 				expect(inProgress.status).toBe(RaffleStatus.IN_PROGRESS);
 
-				const bonus = inProgress.draw(fixedLottery([
+				const bonus = inProgress.draw('1-2', fixedLottery([
 					{ participantId: 3, drawnGroup: DrawnGroup.SENIOR },
 					{ participantId: 4, drawnGroup: DrawnGroup.JUNIOR },
 				]));
@@ -159,7 +159,7 @@ describe('Raffle', () => {
 					{ participantId: 2, drawnGroup: DrawnGroup.JUNIOR },
 				]);
 
-				const result = raffle.draw(lottery);
+				const result = raffle.draw('1-1', lottery);
 
 				expect(result.status).toBe(RaffleStatus.IN_PROGRESS);
 			});
@@ -349,21 +349,21 @@ describe('Raffle', () => {
 				const currentStatus = RaffleStatus.DRAFT;
 				const raffle = fakeRaffle({ status: currentStatus });
 
-				expect(() => raffle.draw()).toThrow(InvalidRaffleStatusError);
+				expect(() => raffle.draw('1-1')).toThrow(InvalidRaffleStatusError);
 			});
 
 			it('should throw InvalidRaffleStatusError when status is COMPLETED', () => {
 				const currentStatus = RaffleStatus.COMPLETED;
 				const raffle = fakeRaffle({ status: currentStatus });
 
-				expect(() => raffle.draw()).toThrow(InvalidRaffleStatusError);
+				expect(() => raffle.draw('1-1')).toThrow(InvalidRaffleStatusError);
 			});
 		});
 
 		it('should throw NoPrizeToDrawError when no drawable prize', () => {
 			const raffle = fakeRaffle({ prizes: [], status: RaffleStatus.READY });
 
-			expect(() => raffle.draw()).toThrow(NoPrizeToDrawError);
+			expect(() => raffle.draw('1-1')).toThrow(NoPrizeToDrawError);
 		});
 
 		it('should throw InvalidWinnerCountError for wrong counts', () => {
@@ -383,7 +383,7 @@ describe('Raffle', () => {
 				{ participantId: 3, drawnGroup: DrawnGroup.JUNIOR },
 			]);
 
-			expect(() => raffle.draw(wrongLottery)).toThrow(InvalidWinnerCountError);
+			expect(() => raffle.draw('1-1', wrongLottery)).toThrow(InvalidWinnerCountError);
 		});
 
 		it('should create PrizeDrawnEvents with correct drawnGroup', () => {
@@ -402,7 +402,7 @@ describe('Raffle', () => {
 				{ participantId: 2, drawnGroup: DrawnGroup.JUNIOR },
 			]);
 
-			const result = raffle.draw(lottery);
+			const result = raffle.draw('1-1', lottery);
 
 			expect(result.pendingEvents.find((e) => e.participantId === 1)?.drawnGroup).toBe(DrawnGroup.SENIOR);
 			expect(result.pendingEvents.find((e) => e.participantId === 2)?.drawnGroup).toBe(DrawnGroup.JUNIOR);
@@ -424,7 +424,7 @@ describe('Raffle', () => {
 				{ participantId: 2, drawnGroup: DrawnGroup.JUNIOR },
 			]);
 
-			const result = raffle.draw(lottery);
+			const result = raffle.draw('1-1', lottery);
 
 			expect(result.prizes[0].isDrawn).toBe(true);
 			expect(result.pendingEvents).toHaveLength(2);
@@ -444,7 +444,7 @@ describe('Raffle', () => {
 				eligibilityPool: pool,
 			});
 
-			const afterFirst = raffle.draw(fixedLottery([{ participantId: 1, drawnGroup: DrawnGroup.SENIOR }]));
+			const afterFirst = raffle.draw('1-1', fixedLottery([{ participantId: 1, drawnGroup: DrawnGroup.SENIOR }]));
 
 			expect(afterFirst.eligibilityPool.hasWon(1)).toBe(true);
 			expect(afterFirst.eligibilityPool.hasWon(2)).toBe(false);
@@ -464,14 +464,14 @@ describe('Raffle', () => {
 				eligibilityPool: pool,
 			});
 
-			const afterFirst = raffle.draw(fixedLottery([{ participantId: 1, drawnGroup: DrawnGroup.SENIOR }]));
+			const afterFirst = raffle.draw('1-1', fixedLottery([{ participantId: 1, drawnGroup: DrawnGroup.SENIOR }]));
 
 			const faultyLottery = fixedLottery([
 				{ participantId: 1, drawnGroup: DrawnGroup.SENIOR },
 				{ participantId: 3, drawnGroup: DrawnGroup.JUNIOR },
 			]);
 
-			expect(() => afterFirst.draw(faultyLottery)).toThrow(ParticipantAlreadyWonError);
+			expect(() => afterFirst.draw('1-2', faultyLottery)).toThrow(ParticipantAlreadyWonError);
 		});
 
 		it('should accumulate pendingEvents across multiple draws', () => {
@@ -487,8 +487,8 @@ describe('Raffle', () => {
 				eligibilityPool: pool,
 			});
 
-			const afterFirst = raffle.draw(fixedLottery([{ participantId: 1, drawnGroup: DrawnGroup.SENIOR }]));
-			const afterSecond = afterFirst.draw(fixedLottery([{ participantId: 2, drawnGroup: DrawnGroup.JUNIOR }]));
+			const afterFirst = raffle.draw('1-1', fixedLottery([{ participantId: 1, drawnGroup: DrawnGroup.SENIOR }]));
+			const afterSecond = afterFirst.draw('1-2', fixedLottery([{ participantId: 2, drawnGroup: DrawnGroup.JUNIOR }]));
 
 			expect(afterSecond.pendingEvents).toHaveLength(2);
 			expect(afterSecond.eligibilityPool.hasWon(1)).toBe(true);
@@ -543,7 +543,7 @@ describe('Raffle', () => {
 				{ participantId: 2, drawnGroup: DrawnGroup.JUNIOR },
 			]);
 
-			raffle.draw(lottery);
+			raffle.draw('1-1', lottery);
 
 			expect(raffle.status).toBe(RaffleStatus.READY);
 			expect(raffle.prizes[0].isDrawn).toBe(false);

@@ -81,6 +81,17 @@ export class EmptyParticipantsError extends DomainError {
 	}
 }
 
+export class UnexpectedRankError extends DomainError {
+	readonly code = 'UNEXPECTED_RANK';
+
+	constructor(
+		public readonly expected: string,
+		public readonly actual: string,
+	) {
+		super(`cannot draw rank ${actual}: expected ${expected} to be drawn next`);
+	}
+}
+
 export type RaffleError =
 	| InvalidStatusTransitionError
 	| NoPrizeToDrawError
@@ -89,4 +100,5 @@ export type RaffleError =
 	| InsufficientEmployeesError
 	| InvalidRaffleStatusError
 	| DuplicateParticipantError
-	| EmptyParticipantsError;
+	| EmptyParticipantsError
+	| UnexpectedRankError;

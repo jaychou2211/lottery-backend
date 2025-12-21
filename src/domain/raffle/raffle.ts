@@ -9,6 +9,7 @@ import {
 	InsufficientEmployeesError,
 	InvalidRaffleStatusError,
 	EmptyParticipantsError,
+	UnexpectedRankError,
 } from './errors';
 import type { LotteryStrategy, WinnerInput } from './lottery-strategy';
 import { Prize } from './prize';
@@ -203,7 +204,7 @@ export class Raffle {
 		return this.status;
 	}
 
-	draw(lottery: LotteryStrategy = randomLottery): Raffle {
+	draw(expectedRank: string, lottery: LotteryStrategy = randomLottery): Raffle {
 		if (![RaffleStatus.READY, RaffleStatus.IN_PROGRESS, RaffleStatus.BONUS].includes(this.status)) {
 			throw new InvalidRaffleStatusError(
 				'draw',
@@ -212,12 +213,17 @@ export class Raffle {
 			);
 		}
 
-		const rank = this.getNextDrawableRank();
-		if (rank === null) {
+		const nextRank = this.getNextDrawableRank();
+		if (nextRank === null) {
 			throw new NoPrizeToDrawError();
 		}
 
-		const prize = this.getPrizeByRank(rank)!;
+		const expectedPrizeRank = PrizeRank.fromString(expectedRank);
+		if (!nextRank.equals(expectedPrizeRank)) {
+			throw new UnexpectedRankError(nextRank.toString(), expectedRank);
+		}
+
+		const prize = this.getPrizeByRank(nextRank)!;
 		if (prize.id === null) {
 			throw new Error('Cannot draw unpersisted prize');
 		}
@@ -233,7 +239,7 @@ export class Raffle {
 		}
 
 		const updatedPrizes = this.prizes.map((p) =>
-			p.rank.equals(rank) ? p.markAsDrawn() : p,
+			p.rank.equals(nextRank) ? p.markAsDrawn() : p,
 		);
 
 		const newEvents = inputs.map(
