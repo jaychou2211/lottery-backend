@@ -53,6 +53,63 @@ export class ParticipantResponseDto {
 	tags: string[];
 }
 
+// ============================================================
+// Draw Progress (must be defined before RaffleDetailResponseDto)
+// ============================================================
+
+export class DrawProgressEligibleCountsResponseDto {
+	@ApiProperty({ enum: ['regular', 'bonus'], example: 'regular' })
+	kind: 'regular' | 'bonus';
+
+	@ApiProperty({ example: 5 })
+	total: number;
+
+	@ApiPropertyOptional({ example: 3 })
+	senior?: number;
+
+	@ApiPropertyOptional({ example: 2 })
+	junior?: number;
+}
+
+export class DrawProgressPrizeResponseDto {
+	@ApiProperty({ example: 1 })
+	id: number;
+
+	@ApiProperty({ example: 'iPhone 15 Pro' })
+	name: string;
+
+	@ApiProperty({ description: 'Prize rank in format "{level}-{sequence}"', example: '1-1' })
+	rank: string;
+
+	@ApiProperty({ description: 'Prize level display name', example: '小獎' })
+	prizeLevel: string;
+
+	@ApiProperty({ example: 'https://example.com/iphone.jpg' })
+	imageUrl: string;
+
+	@ApiProperty({ type: DrawProgressEligibleCountsResponseDto })
+	eligibleCounts: DrawProgressEligibleCountsResponseDto;
+}
+
+export class DrawProgressResponseDto {
+	@ApiProperty({
+		type: DrawProgressPrizeResponseDto,
+		nullable: true,
+		description: 'The last drawn prize, or null if no prizes have been drawn yet',
+	})
+	lastDrawn: DrawProgressPrizeResponseDto | null;
+
+	@ApiProperty({
+		type: [DrawProgressPrizeResponseDto],
+		description: 'Next prizes to be drawn (up to 2)',
+	})
+	upcoming: DrawProgressPrizeResponseDto[];
+}
+
+// ============================================================
+// Raffle Detail
+// ============================================================
+
 export class RaffleDetailResponseDto {
 	@ApiProperty({ example: 1 })
 	id: number;
@@ -79,6 +136,9 @@ export class RaffleDetailResponseDto {
 		},
 	})
 	drawResults?: Record<string, DrawResultResponseDto>;
+
+	@ApiPropertyOptional({ type: () => DrawProgressResponseDto })
+	drawProgress?: DrawProgressResponseDto;
 }
 
 // ============================================================

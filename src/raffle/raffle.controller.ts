@@ -79,7 +79,7 @@ export class RaffleController {
 		name: 'include',
 		required: false,
 		description: 'Comma-separated fields to include in response',
-		enum: ['participants', 'drawResults'],
+		enum: ['participants', 'drawResults', 'drawProgress'],
 		schema: { type: 'string' },
 	})
 	@ApiOkResponse({ description: 'Raffle details', type: RaffleDetailResponseDto })

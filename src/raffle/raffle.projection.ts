@@ -51,6 +51,7 @@ export interface RaffleDetailDto {
 	status: RaffleStatus;
 	participants?: ParticipantDto[];
 	drawResults?: Record<string, DrawResultDto>;
+	drawProgress?: DrawProgressDto;
 }
 
 export interface DrawResultWinnerDto {
@@ -91,10 +92,29 @@ export interface ParticipantStatusDto {
 	}>;
 }
 
-export type RaffleDetailInclude = 'participants' | 'drawResults';
+export type RaffleDetailInclude = 'participants' | 'drawResults' | 'drawProgress';
 
 export interface RaffleDetailOptions {
 	include?: RaffleDetailInclude[];
+}
+
+export interface DrawProgressPrizeDto {
+	id: number;
+	name: string;
+	rank: string;
+	prizeLevel: string;
+	imageUrl: string;
+	eligibleCounts: {
+		kind: 'regular' | 'bonus';
+		total: number;
+		senior?: number;
+		junior?: number;
+	};
+}
+
+export interface DrawProgressDto {
+	lastDrawn: DrawProgressPrizeDto | null;
+	upcoming: DrawProgressPrizeDto[];
 }
 
 export interface RaffleListFilters {
@@ -167,6 +187,10 @@ export class RaffleProjection {
 
 		if (include.includes('drawResults')) {
 			result.drawResults = await this.getDrawResults(id);
+		}
+
+		if (include.includes('drawProgress')) {
+			result.drawProgress = await this.getDrawProgress(id);
 		}
 
 		return result;
@@ -357,6 +381,63 @@ export class RaffleProjection {
 		}
 
 		return result;
+	}
+
+	private async getDrawProgress(raffleId: number): Promise<DrawProgressDto> {
+		// 1. Get last drawn prize (by rank desc)
+		const lastDrawnRow = await this.db
+			.selectFrom('raffle_prize')
+			.selectAll()
+			.where('raffle_id', '=', raffleId)
+			.where('is_drawn', '=', true)
+			.orderBy('rank', 'desc')
+			.limit(1)
+			.executeTakeFirst();
+
+		// 2. Get next 2 upcoming prizes (by rank asc)
+		const upcomingRows = await this.db
+			.selectFrom('raffle_prize')
+			.selectAll()
+			.where('raffle_id', '=', raffleId)
+			.where('is_drawn', '=', false)
+			.orderBy('rank', 'asc')
+			.limit(2)
+			.execute();
+
+		return {
+			lastDrawn: lastDrawnRow ? this.toDrawProgressPrizeDto(lastDrawnRow) : null,
+			upcoming: upcomingRows.map((row) => this.toDrawProgressPrizeDto(row)),
+		};
+	}
+
+	private toDrawProgressPrizeDto(row: {
+		id: number;
+		name: string;
+		rank: string;
+		image_url: string;
+		eligible_kind: string;
+		eligible_total: number;
+		eligible_senior: number | null;
+		eligible_junior: number | null;
+	}): DrawProgressPrizeDto {
+		const prizeRank = PrizeRank.fromString(row.rank);
+		const isBonus = row.eligible_kind === 'bonus';
+
+		return {
+			id: row.id,
+			name: row.name,
+			rank: row.rank,
+			prizeLevel: prizeRank.levelName,
+			imageUrl: row.image_url,
+			eligibleCounts: isBonus
+				? { kind: 'bonus', total: row.eligible_total }
+				: {
+					kind: 'regular',
+					total: row.eligible_total,
+					senior: row.eligible_senior ?? 0,
+					junior: row.eligible_junior ?? 0,
+				},
+		};
 	}
 
 	async getLatestBonusPrize(raffleId: number): Promise<BonusPrizeDto | null> {
