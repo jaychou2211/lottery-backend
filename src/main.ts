@@ -27,6 +27,11 @@ async function bootstrap() {
 
 	app.useGlobalFilters(new HttpExceptionFilter());
 
+	app.enableCors({
+		origin: true, // 開發環境允許所有來源，生產環境應設定具體的域名
+		credentials: true,
+	});
+
 	bootstrapSwagger(app);
 
 	const configService = app.get(ConfigService);
