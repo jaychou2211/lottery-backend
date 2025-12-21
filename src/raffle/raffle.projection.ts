@@ -321,12 +321,18 @@ export class RaffleProjection {
 			.select(['id', 'rank', 'name', 'image_url'])
 			.where('raffle_id', '=', raffleId)
 			.where('is_drawn', '=', true)
-			.orderBy('rank')
 			.execute();
 
 		if (drawnPrizes.length === 0) {
 			return {};
 		}
+
+		// Sort by PrizeRank.compareTo() for consistent ordering
+		drawnPrizes.sort((a, b) => {
+			const rankA = PrizeRank.fromString(a.rank);
+			const rankB = PrizeRank.fromString(b.rank);
+			return rankA.compareTo(rankB);
+		});
 
 		const prizeIds = drawnPrizes.map((p) => p.id);
 
@@ -384,25 +390,39 @@ export class RaffleProjection {
 	}
 
 	private async getDrawProgress(raffleId: number): Promise<DrawProgressDto> {
-		// 1. Get last drawn prize (by rank desc)
-		const lastDrawnRow = await this.db
+		// 1. Get all drawn prizes and sort in application layer
+		const drawnRows = await this.db
 			.selectFrom('raffle_prize')
 			.selectAll()
 			.where('raffle_id', '=', raffleId)
 			.where('is_drawn', '=', true)
-			.orderBy('rank', 'desc')
-			.limit(1)
-			.executeTakeFirst();
+			.execute();
 
-		// 2. Get next 2 upcoming prizes (by rank asc)
-		const upcomingRows = await this.db
+		// Sort by PrizeRank.compareTo() and take the last one
+		const lastDrawnRow = drawnRows
+			.sort((a, b) => {
+				const rankA = PrizeRank.fromString(a.rank);
+				const rankB = PrizeRank.fromString(b.rank);
+				return rankA.compareTo(rankB);
+			})
+			.at(-1);
+
+		// 2. Get all undrawn prizes and sort in application layer
+		const undrawnRows = await this.db
 			.selectFrom('raffle_prize')
 			.selectAll()
 			.where('raffle_id', '=', raffleId)
 			.where('is_drawn', '=', false)
-			.orderBy('rank', 'asc')
-			.limit(2)
 			.execute();
+
+		// Sort by PrizeRank.compareTo() and take first 2
+		const upcomingRows = undrawnRows
+			.sort((a, b) => {
+				const rankA = PrizeRank.fromString(a.rank);
+				const rankB = PrizeRank.fromString(b.rank);
+				return rankA.compareTo(rankB);
+			})
+			.slice(0, 2);
 
 		return {
 			lastDrawn: lastDrawnRow ? this.toDrawProgressPrizeDto(lastDrawnRow) : null,
