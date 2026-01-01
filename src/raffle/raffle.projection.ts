@@ -52,6 +52,7 @@ export interface RaffleDetailDto {
 	participants?: ParticipantDto[];
 	drawResults?: Record<string, DrawResultDto>;
 	drawProgress?: DrawProgressDto;
+	remainingCount?: number;
 }
 
 export interface DrawResultWinnerDto {
@@ -92,7 +93,7 @@ export interface ParticipantStatusDto {
 	}>;
 }
 
-export type RaffleDetailInclude = 'participants' | 'drawResults' | 'drawProgress';
+export type RaffleDetailInclude = 'participants' | 'drawResults' | 'drawProgress' | 'remainingCount';
 
 export interface RaffleDetailOptions {
 	include?: RaffleDetailInclude[];
@@ -191,6 +192,10 @@ export class RaffleProjection {
 
 		if (include.includes('drawProgress')) {
 			result.drawProgress = await this.getDrawProgress(id);
+		}
+
+		if (include.includes('remainingCount')) {
+			result.remainingCount = await this.getRemainingCount(id);
 		}
 
 		return result;
@@ -293,6 +298,25 @@ export class RaffleProjection {
 				};
 			}),
 		};
+	}
+
+	private async getRemainingCount(raffleId: number): Promise<number> {
+		const result = await this.db
+			.selectFrom('raffle_participant')
+			.select((eb) => eb.fn.countAll<number>().as('count'))
+			.where('raffle_id', '=', raffleId)
+			.where('deleted_at', 'is', null)
+			.where(
+				'id',
+				'not in',
+				(eb) => eb
+					.selectFrom('winner_record')
+					.select('participant_id')
+					.where('raffle_id', '=', raffleId),
+			)
+			.executeTakeFirstOrThrow();
+
+		return Number(result.count);
 	}
 
 	private async getParticipants(raffleId: number): Promise<ParticipantDto[]> {
