@@ -139,6 +139,9 @@ export class RaffleDetailResponseDto {
 
 	@ApiPropertyOptional({ type: () => DrawProgressResponseDto })
 	drawProgress?: DrawProgressResponseDto;
+
+	@ApiPropertyOptional({ description: 'Number of participants who have not won any prize yet', example: 120 })
+	remainingCount?: number;
 }
 
 // ============================================================
