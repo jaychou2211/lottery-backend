@@ -1,11 +1,19 @@
 import { registerAs } from '@nestjs/config';
 
+const requireEnv = (key: string): string => {
+	const value = process.env[key];
+	if (!value) {
+		throw new Error(`Missing required environment variable: ${key}`);
+	}
+	return value;
+};
+
 export const databaseConfig = registerAs('database', () => ({
-	host: process.env.DATABASE_HOST || 'localhost',
-	port: parseInt(process.env.DATABASE_PORT || '5432', 10),
-	name: process.env.DATABASE_NAME || 'lottery',
-	user: process.env.DATABASE_USER || 'postgres',
-	password: process.env.DATABASE_PASSWORD || 'postgres',
+	host: requireEnv('DATABASE_HOST'),
+	port: parseInt(requireEnv('DATABASE_PORT'), 10),
+	name: requireEnv('DATABASE_NAME'),
+	user: requireEnv('DATABASE_USER'),
+	password: requireEnv('DATABASE_PASSWORD'),
 	maxConnections: parseInt(process.env.DATABASE_MAX_CONNECTIONS || '10', 10),
 	runMigrationsOnStart: process.env.DATABASE_RUN_MIGRATIONS === 'true',
 }));
