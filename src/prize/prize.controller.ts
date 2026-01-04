@@ -1,38 +1,87 @@
 import {
-	Body,
+	BadRequestException,
 	Controller,
-	Delete,
 	Get,
-	HttpCode,
-	HttpStatus,
 	Param,
 	ParseIntPipe,
-	Patch,
-	Post,
+	Put,
+	UploadedFile,
+	UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
+	ApiBody,
+	ApiConsumes,
 	ApiNotFoundResponse,
 	ApiOperation,
 	ApiResponse,
 	ApiTags,
 } from '@nestjs/swagger';
 
-import { CreatePrizeDto, PrizeResponseDto, UpdatePrizeDto } from './dto';
+import { parsePrizeCsv } from './csv-parser';
+import { PrizeResponseDto, PrizeSyncResultDto } from './dto';
 import { PrizeService } from './prize.service';
 import type { PrizeTemplate } from '../domain/prize-template';
 import { PrizeRank } from '../domain/shared';
+
+interface UploadedFile {
+	buffer: Buffer;
+	originalname: string;
+	mimetype: string;
+	size: number;
+}
 
 @ApiTags('Prizes')
 @Controller('prizes')
 export class PrizeController {
 	constructor(private readonly service: PrizeService) {}
 
-	@Post()
-	@ApiOperation({ summary: 'Create a new prize template' })
-	@ApiResponse({ status: 201, type: PrizeResponseDto })
-	async create(@Body() dto: CreatePrizeDto): Promise<PrizeResponseDto> {
-		const prize = await this.service.create(dto);
-		return this.toResponse(prize);
+	@Put()
+	@UseInterceptors(FileInterceptor('file'))
+	@ApiOperation({
+		summary: 'Sync prize templates from CSV file',
+		description: `
+Replaces the entire prize template list with the data from the uploaded CSV file.
+
+**CSV Format:**
+\`\`\`
+name,rank,imageUrl,senior,junior
+Kiehl's 稀土深層毛孔清潔面膜,1-1,https://example.com/kiehls.jpg,2,1
+露禾LOHE 磁吸翻蓋折疊購物推車65L,1-2,https://example.com/lohe.jpg,3,2
+\`\`\`
+
+**Sync Logic:**
+- Prizes in CSV but not in DB → Created
+- Prizes in both CSV and DB → Updated (if changed)
+- Prizes in DB but not in CSV → Deleted
+- Empty CSV → Deletes all prizes
+		`,
+	})
+	@ApiConsumes('multipart/form-data')
+	@ApiBody({
+		schema: {
+			type: 'object',
+			properties: {
+				file: {
+					type: 'string',
+					format: 'binary',
+					description: 'CSV file with prize template data',
+				},
+			},
+			required: ['file'],
+		},
+	})
+	@ApiResponse({ status: 200, type: PrizeSyncResultDto })
+	async sync(@UploadedFile() file: UploadedFile): Promise<PrizeSyncResultDto> {
+		if (!file) {
+			throw new BadRequestException({
+				code: 'FILE_REQUIRED',
+				message: 'CSV file is required',
+			});
+		}
+
+		const rows = parsePrizeCsv(file.buffer);
+		return this.service.sync(rows);
 	}
 
 	@Get()
@@ -50,27 +99,6 @@ export class PrizeController {
 	async findById(@Param('id', ParseIntPipe) id: number): Promise<PrizeResponseDto> {
 		const prize = await this.service.findById(id);
 		return this.toResponse(prize);
-	}
-
-	@Patch(':id')
-	@ApiOperation({ summary: 'Update a prize template' })
-	@ApiResponse({ status: 200, type: PrizeResponseDto })
-	@ApiNotFoundResponse({ description: 'Prize template not found' })
-	async update(
-		@Param('id', ParseIntPipe) id: number,
-		@Body() dto: UpdatePrizeDto,
-	): Promise<PrizeResponseDto> {
-		const prize = await this.service.update(id, dto);
-		return this.toResponse(prize);
-	}
-
-	@Delete(':id')
-	@HttpCode(HttpStatus.NO_CONTENT)
-	@ApiOperation({ summary: 'Delete a prize template' })
-	@ApiResponse({ status: 204, description: 'Prize template deleted successfully' })
-	@ApiNotFoundResponse({ description: 'Prize template not found' })
-	async delete(@Param('id', ParseIntPipe) id: number): Promise<void> {
-		return this.service.delete(id);
 	}
 
 	private toResponse(prize: PrizeTemplate): PrizeResponseDto {

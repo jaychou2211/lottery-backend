@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
+import type { PrizeCsvRow, PrizeSyncResultDto } from './dto';
 import { PrizeRepository } from './prize.repository';
 import type { PrizeTemplate } from '../domain/prize-template';
 
@@ -27,37 +28,16 @@ export class PrizeService {
 		return prize;
 	}
 
-	async create(data: {
-		name: string;
-		rank: string;
-		imageUrl: string;
-		senior: number;
-		junior: number;
-	}): Promise<PrizeTemplate> {
-		return this.repository.create(data);
-	}
-
-	async update(
-		id: number,
-		data: Partial<{
-			name: string;
-			rank: string;
-			imageUrl: string;
-			senior: number;
-			junior: number;
-		}>,
-	): Promise<PrizeTemplate> {
-		const updated = await this.repository.update(id, data);
-		if (!updated) {
-			throw new NotFoundException(`Prize template with id ${id} not found`);
-		}
-		return updated;
-	}
-
-	async delete(id: number): Promise<void> {
-		const deleted = await this.repository.delete(id);
-		if (!deleted) {
-			throw new NotFoundException(`Prize template with id ${id} not found`);
-		}
+	/**
+	 * Sync prize templates from CSV data.
+	 * Returns the sync result including the total count of active prizes.
+	 */
+	async sync(rows: PrizeCsvRow[]): Promise<PrizeSyncResultDto> {
+		const result = await this.repository.sync(rows);
+		const currentPrizes = await this.repository.findAll();
+		return {
+			...result,
+			total: currentPrizes.length,
+		};
 	}
 }

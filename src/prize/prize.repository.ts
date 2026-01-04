@@ -1,8 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { sql } from 'kysely';
 
-import { InjectKysely, type KyselyDatabase, type PrizeTemplateRow, type NewPrizeTemplate, type PrizeTemplateUpdate } from '../database';
+import { InjectKysely, type KyselyDatabase, type NewPrizeTemplate, type PrizeTemplateRow } from '../database';
 import type { PrizeTemplate } from '../domain/prize-template';
+import type { PrizeCsvRow } from './dto/sync-prize.dto';
+
+export interface SyncResult {
+	created: number;
+	updated: number;
+	deleted: number;
+}
 
 @Injectable()
 export class PrizeRepository {
@@ -35,81 +42,98 @@ export class PrizeRepository {
 		return this.findAll();
 	}
 
-	async create(data: {
-		name: string;
-		rank: string;
-		imageUrl: string;
-		senior: number;
-		junior: number;
-	}): Promise<PrizeTemplate> {
-		const newPrize: NewPrizeTemplate = {
-			name: data.name,
-			rank: data.rank,
-			image_url: data.imageUrl,
-			senior: data.senior,
-			junior: data.junior,
-		};
+	/**
+	 * Sync prize templates from CSV data.
+	 * - Creates new prizes (in CSV but not in DB)
+	 * - Updates existing prizes (in both CSV and DB)
+	 * - Soft-deletes removed prizes (in DB but not in CSV)
+	 *
+	 * Uses `rank` as the unique key for matching.
+	 * All operations are performed in a single transaction.
+	 */
+	async sync(rows: PrizeCsvRow[]): Promise<SyncResult> {
+		return this.db.transaction().execute(async (trx) => {
+			// Get current prize templates
+			const currentRows = await trx
+				.selectFrom('prize_template')
+				.selectAll()
+				.where('deleted_at', 'is', null)
+				.execute();
 
-		const result = await this.db
-			.insertInto('prize_template')
-			.values(newPrize)
-			.returning(['id'])
-			.executeTakeFirstOrThrow();
+			const currentByRank = new Map(currentRows.map((r) => [r.rank, r]));
+			const csvRanks = new Set(rows.map((r) => r.rank));
 
-		const created = await this.findById(result.id);
-		if (!created) {
-			throw new Error('Failed to create prize template');
-		}
-		return created;
-	}
+			// Categorize operations
+			const toCreate: NewPrizeTemplate[] = [];
+			const toUpdate: { id: number; row: PrizeCsvRow }[] = [];
+			const toDelete: number[] = [];
 
-	async update(
-		id: number,
-		data: Partial<{
-			name: string;
-			rank: string;
-			imageUrl: string;
-			senior: number;
-			junior: number;
-		}>,
-	): Promise<PrizeTemplate | null> {
-		const updateData: PrizeTemplateUpdate = {};
+			// Find creates and updates
+			for (const row of rows) {
+				const existing = currentByRank.get(row.rank);
+				if (existing) {
+					// Check if anything changed
+					if (
+						existing.name !== row.name ||
+						existing.image_url !== row.imageUrl ||
+						existing.senior !== row.senior ||
+						existing.junior !== row.junior
+					) {
+						toUpdate.push({ id: existing.id, row });
+					}
+				} else {
+					toCreate.push({
+						name: row.name,
+						rank: row.rank,
+						image_url: row.imageUrl,
+						senior: row.senior,
+						junior: row.junior,
+					});
+				}
+			}
 
-		if (data.name !== undefined) updateData.name = data.name;
-		if (data.rank !== undefined) updateData.rank = data.rank;
-		if (data.imageUrl !== undefined) updateData.image_url = data.imageUrl;
-		if (data.senior !== undefined) updateData.senior = data.senior;
-		if (data.junior !== undefined) updateData.junior = data.junior;
+			// Find deletes
+			for (const current of currentRows) {
+				if (!csvRanks.has(current.rank)) {
+					toDelete.push(current.id);
+				}
+			}
 
-		if (Object.keys(updateData).length === 0) {
-			return this.findById(id);
-		}
+			// Execute creates
+			if (toCreate.length > 0) {
+				await trx.insertInto('prize_template').values(toCreate).execute();
+			}
 
-		const result = await this.db
-			.updateTable('prize_template')
-			.set({
-				...updateData,
-				updated_at: sql`CURRENT_TIMESTAMP`,
-			})
-			.where('id', '=', id)
-			.where('deleted_at', 'is', null)
-			.executeTakeFirst();
+			// Execute updates
+			for (const { id, row } of toUpdate) {
+				await trx
+					.updateTable('prize_template')
+					.set({
+						name: row.name,
+						image_url: row.imageUrl,
+						senior: row.senior,
+						junior: row.junior,
+						updated_at: sql`CURRENT_TIMESTAMP`,
+					})
+					.where('id', '=', id)
+					.execute();
+			}
 
-		if (result.numUpdatedRows === 0n) {
-			return null;
-		}
+			// Execute deletes (soft delete)
+			if (toDelete.length > 0) {
+				await trx
+					.updateTable('prize_template')
+					.set({ deleted_at: sql`CURRENT_TIMESTAMP` })
+					.where('id', 'in', toDelete)
+					.execute();
+			}
 
-		return this.findById(id);
-	}
-
-	async delete(id: number): Promise<boolean> {
-		const result = await this.db
-			.updateTable('prize_template')
-			.set({ deleted_at: sql`CURRENT_TIMESTAMP` })
-			.where('id', '=', id)
-			.where('deleted_at', 'is', null)
-			.executeTakeFirst();
-		return result.numUpdatedRows > 0n;
+			return {
+				created: toCreate.length,
+				updated: toUpdate.length,
+				deleted: toDelete.length,
+			};
+		});
 	}
 
 	private toDomain(row: PrizeTemplateRow): PrizeTemplate {
