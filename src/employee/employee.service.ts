@@ -1,8 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 
+import type { EmployeeCsvRow, SyncResultDto } from './dto/sync-employee.dto';
 import { EmployeeRepository } from './employee.repository';
 import type { Employee } from '../domain/employee';
-import { EmployeeRole } from '../domain/shared';
 
 @Injectable()
 export class EmployeeService {
@@ -32,50 +32,19 @@ export class EmployeeService {
 		return this.repository.findByIds(ids);
 	}
 
-	async create(data: {
-		staffNumber: string;
-		name: string;
-		department: string;
-		role: EmployeeRole;
-	}): Promise<Employee> {
-		const exists = await this.repository.existsByStaffNumber(data.staffNumber);
-		if (exists) {
-			throw new ConflictException(`Employee with staff number ${data.staffNumber} already exists`);
-		}
-		return this.repository.create(data);
-	}
+	/**
+	 * Sync employees from CSV data.
+	 * Replaces the entire employee list with the provided data.
+	 */
+	async sync(rows: EmployeeCsvRow[]): Promise<SyncResultDto> {
+		const result = await this.repository.sync(rows);
+		const currentEmployees = await this.repository.findAll();
 
-	async update(
-		id: number,
-		data: Partial<{
-			staffNumber: string;
-			name: string;
-			department: string;
-			role: EmployeeRole;
-		}>,
-	): Promise<Employee> {
-		// Check if employee exists
-		await this.findById(id);
-
-		// Check for duplicate staff number if updating it
-		if (data.staffNumber !== undefined) {
-			const exists = await this.repository.existsByStaffNumber(data.staffNumber, id);
-			if (exists) {
-				throw new ConflictException(`Employee with staff number ${data.staffNumber} already exists`);
-			}
-		}
-
-		const updated = await this.repository.update(id, data);
-		if (!updated) {
-			throw new NotFoundException(`Employee with id ${id} not found`);
-		}
-		return updated;
-	}
-
-	async delete(id: number): Promise<void> {
-		const deleted = await this.repository.delete(id);
-		if (!deleted) {
-			throw new NotFoundException(`Employee with id ${id} not found`);
-		}
+		return {
+			created: result.created,
+			updated: result.updated,
+			deleted: result.deleted,
+			total: currentEmployees.length,
+		};
 	}
 }

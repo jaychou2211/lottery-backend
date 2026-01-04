@@ -1,37 +1,84 @@
 import {
-	Body,
+	BadRequestException,
 	Controller,
-	Delete,
 	Get,
-	HttpCode,
-	HttpStatus,
 	Param,
 	ParseIntPipe,
-	Patch,
-	Post,
+	Put,
+	UploadedFile,
+	UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
-	ApiConflictResponse,
+	ApiBody,
+	ApiConsumes,
 	ApiNotFoundResponse,
 	ApiOperation,
 	ApiResponse,
 	ApiTags,
 } from '@nestjs/swagger';
-
-import { CreateEmployeeDto, EmployeeResponseDto, UpdateEmployeeDto } from './dto';
+import { parseEmployeeCsv } from './csv-parser';
+import { EmployeeResponseDto, SyncResultDto } from './dto';
 import { EmployeeService } from './employee.service';
+
+interface UploadedFile {
+	buffer: Buffer;
+	originalname: string;
+	mimetype: string;
+	size: number;
+}
 
 @ApiTags('Employees')
 @Controller('employees')
 export class EmployeeController {
 	constructor(private readonly service: EmployeeService) {}
 
-	@Post()
-	@ApiOperation({ summary: 'Create a new employee' })
-	@ApiResponse({ status: 201, type: EmployeeResponseDto })
-	@ApiConflictResponse({ description: 'Staff number already exists' })
-	async create(@Body() dto: CreateEmployeeDto): Promise<EmployeeResponseDto> {
-		return this.service.create(dto);
+	@Put()
+	@UseInterceptors(FileInterceptor('file'))
+	@ApiOperation({
+		summary: 'Sync employees from CSV file',
+		description: `
+Replaces the entire employee list with the data from the uploaded CSV file.
+
+**CSV Format:**
+\`\`\`
+staffNumber,name,department,role
+A001,王小明,研發部,SENIOR
+A002,李小華,行銷部,JUNIOR
+\`\`\`
+
+**Sync Logic:**
+- Employees in CSV but not in DB → Created
+- Employees in both CSV and DB → Updated (if changed)
+- Employees in DB but not in CSV → Deleted
+- Empty CSV → Deletes all employees
+		`,
+	})
+	@ApiConsumes('multipart/form-data')
+	@ApiBody({
+		schema: {
+			type: 'object',
+			properties: {
+				file: {
+					type: 'string',
+					format: 'binary',
+					description: 'CSV file with employee data',
+				},
+			},
+			required: ['file'],
+		},
+	})
+	@ApiResponse({ status: 200, type: SyncResultDto })
+	async sync(@UploadedFile() file: UploadedFile): Promise<SyncResultDto> {
+		if (!file) {
+			throw new BadRequestException({
+				code: 'FILE_REQUIRED',
+				message: 'CSV file is required',
+			});
+		}
+
+		const rows = parseEmployeeCsv(file.buffer);
+		return this.service.sync(rows);
 	}
 
 	@Get()
@@ -47,26 +94,5 @@ export class EmployeeController {
 	@ApiNotFoundResponse({ description: 'Employee not found' })
 	async findById(@Param('id', ParseIntPipe) id: number): Promise<EmployeeResponseDto> {
 		return this.service.findById(id);
-	}
-
-	@Patch(':id')
-	@ApiOperation({ summary: 'Update an employee' })
-	@ApiResponse({ status: 200, type: EmployeeResponseDto })
-	@ApiNotFoundResponse({ description: 'Employee not found' })
-	@ApiConflictResponse({ description: 'Staff number already exists' })
-	async update(
-		@Param('id', ParseIntPipe) id: number,
-		@Body() dto: UpdateEmployeeDto,
-	): Promise<EmployeeResponseDto> {
-		return this.service.update(id, dto);
-	}
-
-	@Delete(':id')
-	@HttpCode(HttpStatus.NO_CONTENT)
-	@ApiOperation({ summary: 'Delete an employee' })
-	@ApiResponse({ status: 204, description: 'Employee deleted successfully' })
-	@ApiNotFoundResponse({ description: 'Employee not found' })
-	async delete(@Param('id', ParseIntPipe) id: number): Promise<void> {
-		return this.service.delete(id);
 	}
 }

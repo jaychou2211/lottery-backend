@@ -1,9 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { sql } from 'kysely';
 
-import { InjectKysely, type KyselyDatabase, type EmployeeRow, type NewEmployee, type EmployeeUpdate } from '../database';
+import { InjectKysely, type KyselyDatabase, type EmployeeRow, type NewEmployee } from '../database';
 import type { Employee } from '../domain/employee';
 import { EmployeeRole } from '../domain/shared';
+import type { EmployeeCsvRow } from './dto/sync-employee.dto';
+
+export interface SyncResult {
+	created: number;
+	updated: number;
+	deleted: number;
+}
 
 @Injectable()
 export class EmployeeRepository {
@@ -47,101 +54,94 @@ export class EmployeeRepository {
 		return this.findAll();
 	}
 
-	async findByStaffNumber(staffNumber: string): Promise<Employee | null> {
-		const row = await this.db
-			.selectFrom('employee')
-			.selectAll()
-			.where('staff_number', '=', staffNumber)
-			.where('deleted_at', 'is', null)
-			.executeTakeFirst();
-		return row ? this.toDomain(row) : null;
-	}
+	/**
+	 * Sync employees from CSV data.
+	 * - Creates new employees (in CSV but not in DB)
+	 * - Updates existing employees (in both CSV and DB)
+	 * - Soft-deletes removed employees (in DB but not in CSV)
+	 *
+	 * All operations are performed in a single transaction.
+	 */
+	async sync(rows: EmployeeCsvRow[]): Promise<SyncResult> {
+		return this.db.transaction().execute(async (trx) => {
+			// Get current employees
+			const currentRows = await trx
+				.selectFrom('employee')
+				.selectAll()
+				.where('deleted_at', 'is', null)
+				.execute();
 
-	async create(data: {
-		staffNumber: string;
-		name: string;
-		department: string;
-		role: EmployeeRole;
-	}): Promise<Employee> {
-		const newEmployee: NewEmployee = {
-			staff_number: data.staffNumber,
-			name: data.name,
-			department: data.department,
-			role: data.role,
-		};
+			const currentByStaffNumber = new Map(currentRows.map((r) => [r.staff_number, r]));
+			const csvStaffNumbers = new Set(rows.map((r) => r.staffNumber));
 
-		const result = await this.db
-			.insertInto('employee')
-			.values(newEmployee)
-			.returning(['id'])
-			.executeTakeFirstOrThrow();
+			// Categorize operations
+			const toCreate: NewEmployee[] = [];
+			const toUpdate: { id: number; row: EmployeeCsvRow }[] = [];
+			const toDelete: number[] = [];
 
-		const created = await this.findById(result.id);
-		if (!created) {
-			throw new Error('Failed to create employee');
-		}
-		return created;
-	}
+			// Find creates and updates
+			for (const row of rows) {
+				const existing = currentByStaffNumber.get(row.staffNumber);
+				if (existing) {
+					// Check if anything changed
+					if (
+						existing.name !== row.name ||
+						existing.department !== row.department ||
+						existing.role !== row.role
+					) {
+						toUpdate.push({ id: existing.id, row });
+					}
+				} else {
+					toCreate.push({
+						staff_number: row.staffNumber,
+						name: row.name,
+						department: row.department,
+						role: row.role,
+					});
+				}
+			}
 
-	async update(
-		id: number,
-		data: Partial<{
-			staffNumber: string;
-			name: string;
-			department: string;
-			role: EmployeeRole;
-		}>,
-	): Promise<Employee | null> {
-		const updateData: EmployeeUpdate = {};
+			// Find deletes
+			for (const current of currentRows) {
+				if (!csvStaffNumbers.has(current.staff_number)) {
+					toDelete.push(current.id);
+				}
+			}
 
-		if (data.staffNumber !== undefined) updateData.staff_number = data.staffNumber;
-		if (data.name !== undefined) updateData.name = data.name;
-		if (data.department !== undefined) updateData.department = data.department;
-		if (data.role !== undefined) updateData.role = data.role;
+			// Execute creates
+			if (toCreate.length > 0) {
+				await trx.insertInto('employee').values(toCreate).execute();
+			}
 
-		if (Object.keys(updateData).length === 0) {
-			return this.findById(id);
-		}
+			// Execute updates
+			for (const { id, row } of toUpdate) {
+				await trx
+					.updateTable('employee')
+					.set({
+						name: row.name,
+						department: row.department,
+						role: row.role,
+						updated_at: sql`CURRENT_TIMESTAMP`,
+					})
+					.where('id', '=', id)
+					.execute();
+			}
 
-		const result = await this.db
-			.updateTable('employee')
-			.set({
-				...updateData,
-				updated_at: sql`CURRENT_TIMESTAMP`,
-			})
-			.where('id', '=', id)
-			.executeTakeFirst();
+			// Execute deletes (soft delete)
+			if (toDelete.length > 0) {
+				await trx
+					.updateTable('employee')
+					.set({ deleted_at: sql`CURRENT_TIMESTAMP` })
+					.where('id', 'in', toDelete)
+					.execute();
+			}
 
-		if (result.numUpdatedRows === 0n) {
-			return null;
-		}
-
-		return this.findById(id);
-	}
-
-	async delete(id: number): Promise<boolean> {
-		const result = await this.db
-			.updateTable('employee')
-			.set({ deleted_at: sql`CURRENT_TIMESTAMP` })
-			.where('id', '=', id)
-			.where('deleted_at', 'is', null)
-			.executeTakeFirst();
-		return result.numUpdatedRows > 0n;
-	}
-
-	async existsByStaffNumber(staffNumber: string, excludeId?: number): Promise<boolean> {
-		let query = this.db
-			.selectFrom('employee')
-			.select('id')
-			.where('staff_number', '=', staffNumber)
-			.where('deleted_at', 'is', null);
-
-		if (excludeId !== undefined) {
-			query = query.where('id', '!=', excludeId);
-		}
-
-		const row = await query.executeTakeFirst();
-		return row !== undefined;
+			return {
+				created: toCreate.length,
+				updated: toUpdate.length,
+				deleted: toDelete.length,
+			};
+		});
 	}
 
 	private toDomain(row: EmployeeRow): Employee {
