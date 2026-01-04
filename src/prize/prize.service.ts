@@ -1,31 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import type { PrizeCsvRow, PrizeSyncResultDto } from './dto';
 import { PrizeRepository } from './prize.repository';
-import type { PrizeTemplate } from '../domain/prize-template';
+import type { PrizeTemplateRow } from '../database';
 
 @Injectable()
 export class PrizeService {
 	constructor(private readonly repository: PrizeRepository) {}
 
-	async findAll(): Promise<PrizeTemplate[]> {
+	async findAll(): Promise<PrizeTemplateRow[]> {
 		return this.repository.findAll();
-	}
-
-	/**
-	 * Find all active (non-deleted) prize templates.
-	 * Used when creating a new raffle.
-	 */
-	async findAllActive(): Promise<PrizeTemplate[]> {
-		return this.repository.findAllActive();
-	}
-
-	async findById(id: number): Promise<PrizeTemplate> {
-		const prize = await this.repository.findById(id);
-		if (!prize) {
-			throw new NotFoundException(`Prize template with id ${id} not found`);
-		}
-		return prize;
 	}
 
 	/**

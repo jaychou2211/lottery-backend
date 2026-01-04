@@ -2,8 +2,6 @@ import {
 	BadRequestException,
 	Controller,
 	Get,
-	Param,
-	ParseIntPipe,
 	Put,
 	UploadedFile,
 	UseInterceptors,
@@ -12,7 +10,6 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import {
 	ApiBody,
 	ApiConsumes,
-	ApiNotFoundResponse,
 	ApiOperation,
 	ApiResponse,
 	ApiTags,
@@ -21,7 +18,7 @@ import {
 import { parsePrizeCsv } from './csv-parser';
 import { PrizeResponseDto, PrizeSyncResultDto } from './dto';
 import { PrizeService } from './prize.service';
-import type { PrizeTemplate } from '../domain/prize-template';
+import type { PrizeTemplateRow } from '../database';
 import { PrizeRank } from '../domain/shared';
 
 interface UploadedFile {
@@ -92,25 +89,16 @@ Kiehl's 稀土深層毛孔清潔面膜,1-1,https://example.com/kiehls.jpg,2,1
 		return prizes.map((p) => this.toResponse(p));
 	}
 
-	@Get(':id')
-	@ApiOperation({ summary: 'Get a prize template by ID' })
-	@ApiResponse({ status: 200, type: PrizeResponseDto })
-	@ApiNotFoundResponse({ description: 'Prize template not found' })
-	async findById(@Param('id', ParseIntPipe) id: number): Promise<PrizeResponseDto> {
-		const prize = await this.service.findById(id);
-		return this.toResponse(prize);
-	}
-
-	private toResponse(prize: PrizeTemplate): PrizeResponseDto {
-		const rank = PrizeRank.fromString(prize.rank);
+	private toResponse(row: PrizeTemplateRow): PrizeResponseDto {
+		const rank = PrizeRank.fromString(row.rank);
 		return {
-			id: prize.id,
-			name: prize.name,
-			rank: prize.rank,
+			id: row.id,
+			name: row.name,
+			rank: row.rank,
 			prizeLevel: rank.levelName,
-			imageUrl: prize.imageUrl,
-			senior: prize.senior,
-			junior: prize.junior,
+			imageUrl: row.image_url,
+			senior: row.senior,
+			junior: row.junior,
 		};
 	}
 }

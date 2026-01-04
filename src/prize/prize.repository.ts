@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { sql } from 'kysely';
 
 import { InjectKysely, type KyselyDatabase, type NewPrizeTemplate, type PrizeTemplateRow } from '../database';
-import type { PrizeTemplate } from '../domain/prize-template';
 import type { PrizeCsvRow } from './dto/sync-prize.dto';
 
 export interface SyncResult {
@@ -15,31 +14,12 @@ export interface SyncResult {
 export class PrizeRepository {
 	constructor(@InjectKysely() private readonly db: KyselyDatabase) {}
 
-	async findAll(): Promise<PrizeTemplate[]> {
-		const rows = await this.db
+	async findAll(): Promise<PrizeTemplateRow[]> {
+		return this.db
 			.selectFrom('prize_template')
 			.selectAll()
 			.where('deleted_at', 'is', null)
 			.execute();
-		return rows.map(this.toDomain);
-	}
-
-	async findById(id: number): Promise<PrizeTemplate | null> {
-		const row = await this.db
-			.selectFrom('prize_template')
-			.selectAll()
-			.where('id', '=', id)
-			.where('deleted_at', 'is', null)
-			.executeTakeFirst();
-		return row ? this.toDomain(row) : null;
-	}
-
-	/**
-	 * Find all active (non-deleted) prize templates.
-	 * Used when creating a new raffle.
-	 */
-	async findAllActive(): Promise<PrizeTemplate[]> {
-		return this.findAll();
 	}
 
 	/**
@@ -134,16 +114,5 @@ export class PrizeRepository {
 				deleted: toDelete.length,
 			};
 		});
-	}
-
-	private toDomain(row: PrizeTemplateRow): PrizeTemplate {
-		return {
-			id: row.id,
-			name: row.name,
-			rank: row.rank,
-			imageUrl: row.image_url,
-			senior: row.senior,
-			junior: row.junior,
-		};
 	}
 }
