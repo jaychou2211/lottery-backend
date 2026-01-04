@@ -126,6 +126,7 @@ export async function createTestApp(): Promise<TestApp> {
 			whitelist: true,
 		}),
 	);
+	app.setGlobalPrefix('api');
 	await app.init();
 
 	return { app, db };

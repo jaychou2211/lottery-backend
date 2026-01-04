@@ -27,6 +27,8 @@ async function bootstrap() {
 		credentials: true,
 	});
 
+	app.setGlobalPrefix('api');
+
 	bootstrapSwagger(app);
 
 	const configService = app.get(ConfigService);

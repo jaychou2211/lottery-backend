@@ -94,7 +94,7 @@ describe('PUT /employees - CSV Sync', () => {
 		// ========================================
 
 		const response = await request(app.getHttpServer())
-			.put('/employees')
+			.put('/api/employees')
 			.attach('file', Buffer.from(csvContent), 'employees.csv')
 			.expect(200);
 
@@ -178,7 +178,7 @@ describe('PUT /employees - CSV Sync', () => {
 		const emptyCsv = 'staffNumber,name,department,role\n';
 
 		const response = await request(app.getHttpServer())
-			.put('/employees')
+			.put('/api/employees')
 			.attach('file', Buffer.from(emptyCsv), 'employees.csv')
 			.expect(200);
 
@@ -219,7 +219,7 @@ describe('PUT /employees - CSV Sync', () => {
 		// ========================================
 
 		const response = await request(app.getHttpServer())
-			.put('/employees')
+			.put('/api/employees')
 			.attach('file', Buffer.from(csvContent), 'employees.csv')
 			.expect(400);
 
@@ -240,7 +240,7 @@ E001,員工A,部門A,INVALID_ROLE`;
 		// ========================================
 
 		const response = await request(app.getHttpServer())
-			.put('/employees')
+			.put('/api/employees')
 			.attach('file', Buffer.from(csvContent), 'employees.csv')
 			.expect(400);
 

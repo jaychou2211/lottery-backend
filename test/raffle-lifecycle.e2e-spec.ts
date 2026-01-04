@@ -32,7 +32,7 @@ describe('Raffle Lifecycle (e2e)', () => {
 	// =========================================================
 
 	it('should have employees from seed data', async () => {
-		const response = await request(app.getHttpServer()).get('/employees');
+		const response = await request(app.getHttpServer()).get('/api/employees');
 
 		expect(response.status).toBe(200);
 		expect(response.body.length).toBeGreaterThanOrEqual(10);
@@ -46,7 +46,7 @@ describe('Raffle Lifecycle (e2e)', () => {
 	});
 
 	it('should have prize templates from seed data', async () => {
-		const response = await request(app.getHttpServer()).get('/prizes');
+		const response = await request(app.getHttpServer()).get('/api/prizes');
 
 		expect(response.status).toBe(200);
 		expect(response.body.length).toBeGreaterThanOrEqual(5);
@@ -75,7 +75,7 @@ describe('Raffle Lifecycle (e2e)', () => {
 	it('should create a new raffle in DRAFT status with auto-associated employees and prizes', async () => {
 		// Create raffle - returns just { id }
 		const createResponse = await request(app.getHttpServer())
-			.post('/raffles')
+			.post('/api/raffles')
 			.send({ name: '2024 年末尾牙抽獎' });
 
 		expect(createResponse.status).toBe(201);
@@ -84,7 +84,7 @@ describe('Raffle Lifecycle (e2e)', () => {
 
 		// Get full detail
 		const detailResponse = await request(app.getHttpServer())
-			.get(`/raffles/${raffleId}`);
+			.get(`/api/raffles/${raffleId}`);
 
 		expect(detailResponse.status).toBe(200);
 		expect(detailResponse.body.name).toBe('2024 年末尾牙抽獎');
@@ -105,14 +105,14 @@ describe('Raffle Lifecycle (e2e)', () => {
 
 	it('should transition to READY status', async () => {
 		const response = await request(app.getHttpServer())
-			.patch(`/raffles/${raffleId}/status`)
+			.patch(`/api/raffles/${raffleId}/status`)
 			.send({ status: 'READY' });
 
 		expect(response.status).toBe(204);
 
 		// Verify status via GET
 		const detailResponse = await request(app.getHttpServer())
-			.get(`/raffles/${raffleId}`);
+			.get(`/api/raffles/${raffleId}`);
 
 		expect(detailResponse.body.status).toBe('READY');
 	});
@@ -123,7 +123,7 @@ describe('Raffle Lifecycle (e2e)', () => {
 
 	it('should draw first prize and transition to IN_PROGRESS', async () => {
 		const response = await request(app.getHttpServer())
-			.post(`/raffles/${raffleId}/draw?rank=${prizeRanks[0]}`);
+			.post(`/api/raffles/${raffleId}/draw?rank=${prizeRanks[0]}`);
 
 		expect(response.status).toBe(200);
 		// DrawResultDto shape: winners[], prize, drawnAt
@@ -137,7 +137,7 @@ describe('Raffle Lifecycle (e2e)', () => {
 
 		// Verify status via GET
 		const detailResponse = await request(app.getHttpServer())
-			.get(`/raffles/${raffleId}`);
+			.get(`/api/raffles/${raffleId}`);
 
 		expect(detailResponse.body.status).toBe('IN_PROGRESS');
 	});
@@ -152,14 +152,14 @@ describe('Raffle Lifecycle (e2e)', () => {
 
 		while (currentStatus !== 'BONUS' && drawCount < prizeCount) {
 			const response = await request(app.getHttpServer())
-				.post(`/raffles/${raffleId}/draw?rank=${prizeRanks[drawCount]}`);
+				.post(`/api/raffles/${raffleId}/draw?rank=${prizeRanks[drawCount]}`);
 
 			expect(response.status).toBe(200);
 			drawCount++;
 
 			// Check status via GET
 			const detailResponse = await request(app.getHttpServer())
-				.get(`/raffles/${raffleId}`);
+				.get(`/api/raffles/${raffleId}`);
 
 			currentStatus = detailResponse.body.status;
 		}
@@ -173,21 +173,21 @@ describe('Raffle Lifecycle (e2e)', () => {
 
 	it('should mark raffle as completed', async () => {
 		const response = await request(app.getHttpServer())
-			.patch(`/raffles/${raffleId}/status`)
+			.patch(`/api/raffles/${raffleId}/status`)
 			.send({ status: 'COMPLETED' });
 
 		expect(response.status).toBe(204);
 
 		// Verify status via GET
 		const detailResponse = await request(app.getHttpServer())
-			.get(`/raffles/${raffleId}`);
+			.get(`/api/raffles/${raffleId}`);
 
 		expect(detailResponse.body.status).toBe('COMPLETED');
 	});
 
 	it('should reject any further operations on completed raffle', async () => {
 		const bonusResponse = await request(app.getHttpServer())
-			.post(`/raffles/${raffleId}/bonus-prizes`)
+			.post(`/api/raffles/${raffleId}/bonus-prizes`)
 			.send({
 				name: '額外獎',
 				imageUrl: 'https://example.com/extra.jpg',
@@ -197,7 +197,7 @@ describe('Raffle Lifecycle (e2e)', () => {
 		expect(bonusResponse.status).toBe(400);
 
 		const drawResponse = await request(app.getHttpServer())
-			.post(`/raffles/${raffleId}/draw?rank=6-1`);
+			.post(`/api/raffles/${raffleId}/draw?rank=6-1`);
 
 		expect(drawResponse.status).toBe(400);
 	});
@@ -207,7 +207,7 @@ describe('Raffle Lifecycle (e2e)', () => {
 	// =========================================================
 
 	it('should have correct final state', async () => {
-		const response = await request(app.getHttpServer()).get(`/raffles/${raffleId}`);
+		const response = await request(app.getHttpServer()).get(`/api/raffles/${raffleId}`);
 
 		expect(response.status).toBe(200);
 		expect(response.body.status).toBe('COMPLETED');

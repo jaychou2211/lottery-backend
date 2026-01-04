@@ -96,7 +96,7 @@ describe('PUT /prizes - CSV Sync', () => {
 		// ========================================
 
 		const response = await request(app.getHttpServer())
-			.put('/prizes')
+			.put('/api/prizes')
 			.attach('file', Buffer.from(csvContent), 'prizes.csv')
 			.expect(200);
 
@@ -182,7 +182,7 @@ describe('PUT /prizes - CSV Sync', () => {
 		const emptyCsv = 'name,rank,imageUrl,senior,junior\n';
 
 		const response = await request(app.getHttpServer())
-			.put('/prizes')
+			.put('/api/prizes')
 			.attach('file', Buffer.from(emptyCsv), 'prizes.csv')
 			.expect(200);
 
@@ -223,7 +223,7 @@ describe('PUT /prizes - CSV Sync', () => {
 		// ========================================
 
 		const response = await request(app.getHttpServer())
-			.put('/prizes')
+			.put('/api/prizes')
 			.attach('file', Buffer.from(csvContent), 'prizes.csv')
 			.expect(400);
 
@@ -244,7 +244,7 @@ describe('PUT /prizes - CSV Sync', () => {
 		// ========================================
 
 		const response = await request(app.getHttpServer())
-			.put('/prizes')
+			.put('/api/prizes')
 			.attach('file', Buffer.from(csvContent), 'prizes.csv')
 			.expect(400);
 
@@ -265,7 +265,7 @@ describe('PUT /prizes - CSV Sync', () => {
 		// ========================================
 
 		const response = await request(app.getHttpServer())
-			.put('/prizes')
+			.put('/api/prizes')
 			.attach('file', Buffer.from(csvContent), 'prizes.csv')
 			.expect(400);
 
