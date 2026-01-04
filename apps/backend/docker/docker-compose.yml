@@ -1,0 +1,32 @@
+services:
+  backend:
+    build:
+      context: apps/backend
+      dockerfile: docker/Dockerfile
+    image: year-end-lottery-backend:latest
+    container_name: year-end-lottery-backend
+    restart: unless-stopped
+    env_file:
+      - apps/backend/.env
+    environment:
+      # Override for production: pino-pretty is not available
+      LOG_PRETTY: 'false'
+      NODE_ENV: 'production'
+    ports:
+      - '${LOTTERY_FORWARD_API_PORT:-3000}:3000'
+    networks:
+      - year-end-lottery-network
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/api/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '10m'
+        max-file: '20'
+
+networks:
+  year-end-lottery-network:

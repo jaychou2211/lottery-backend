@@ -1,0 +1,13 @@
+# Development override for backend service
+# Used when: ./compose.sh dev api,... up -d
+
+services:
+  backend:
+    build:
+      context: apps/backend
+      dockerfile: docker/dev.Dockerfile
+    image: year-end-lottery-backend:dev
+    container_name: year-end-lottery-backend-dev
+    volumes:
+      - ./apps/backend:/home/node/apps
+    command: ["tail", "-f", "/dev/null"]
