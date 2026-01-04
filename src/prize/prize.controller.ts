@@ -17,7 +17,7 @@ import {
 
 import { parsePrizeCsv } from './csv-parser';
 import { PrizeResponseDto, PrizeSyncResultDto } from './dto';
-import { PrizeService } from './prize.service';
+import { PrizeRepository } from './prize.repository';
 import type { PrizeTemplateRow } from '../database';
 import { PrizeRank } from '../domain/shared';
 
@@ -31,7 +31,7 @@ interface UploadedFile {
 @ApiTags('Prizes')
 @Controller('prizes')
 export class PrizeController {
-	constructor(private readonly service: PrizeService) {}
+	constructor(private readonly repository: PrizeRepository) {}
 
 	@Put()
 	@UseInterceptors(FileInterceptor('file'))
@@ -78,14 +78,16 @@ Kiehl's 稀土深層毛孔清潔面膜,1-1,https://example.com/kiehls.jpg,2,1
 		}
 
 		const rows = parsePrizeCsv(file.buffer);
-		return this.service.sync(rows);
+		const result = await this.repository.sync(rows);
+		const currentPrizes = await this.repository.findAll();
+		return { ...result, total: currentPrizes.length };
 	}
 
 	@Get()
 	@ApiOperation({ summary: 'List all prize templates' })
 	@ApiResponse({ status: 200, type: [PrizeResponseDto] })
 	async findAll(): Promise<PrizeResponseDto[]> {
-		const prizes = await this.service.findAll();
+		const prizes = await this.repository.findAll();
 		return prizes.map((p) => this.toResponse(p));
 	}
 
