@@ -1,33 +1,6 @@
-services:
-  lottery-app:
-    build:
-      context: .
-      dockerfile: ./docker/Dockerfile
-    image: lottery-backend-production
-    container_name: production_lottery-app
-    restart: always
-    volumes:
-      - ./logs:/home/node/apps/logs
-    environment:
-      - LOG_PRETTY=false
-    env_file:
-      - .env
-    ports:
-      - '${LOTTERY_FORWARD_API_PORT:-3000}:${APP_PORT:-3000}'
-    networks:
-      - lottery-network
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:${APP_PORT:-3000}/api/health']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    logging:
-      driver: 'json-file'
-      options:
-        max-size: '10m'
-        max-file: '20'
+# Base configuration - network definition only
+# Use compose.sh to combine with other docker-compose files
 
 networks:
-  lottery-network:
+  year-end-lottery-network:
     driver: bridge
