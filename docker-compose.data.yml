@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-lottery}_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-lottery}
+      POSTGRES_USER: ${DATABASE_USER:-postgres}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-postgres}
+    volumes:
+      - lottery-postgres-data:/var/lib/postgresql/data
+    ports:
+      - '${LOTTERY_FORWARD_DB_PORT:-5432}:5432'
+    networks:
+      - lottery-network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DATABASE_USER:-postgres} -d ${DATABASE_NAME:-lottery}']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  lottery-app:
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_HOST=postgres
+
+volumes:
+  lottery-postgres-data:
+    driver: local

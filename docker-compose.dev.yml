@@ -1,16 +1,10 @@
 services:
-  postgres:
-    restart: 'no'
-
   lottery-app:
     build:
       context: .
       dockerfile: ./docker/dev.Dockerfile
     image: lottery-backend-dev
     container_name: dev_lottery-app
-    depends_on:
-      postgres:
-        condition: service_healthy
     volumes:
       - .:/home/node/apps
       - lottery-node-modules:/home/node/apps/node_modules
@@ -21,7 +15,6 @@ services:
         target: /ssh-agent
     environment:
       - SSH_AUTH_SOCK=/ssh-agent
-      - DATABASE_HOST=postgres
     env_file:
       - .env
     ports:
@@ -32,8 +25,6 @@ services:
       - 'host.docker.internal:host-gateway'
 
 volumes:
-  lottery-postgres-data:
-    driver: local
   lottery-node-modules:
     driver: local
   lottery-pnpm-store:
