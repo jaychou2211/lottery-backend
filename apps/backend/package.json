@@ -1,5 +1,5 @@
 {
-  "name": "lottery-backend",
+  "name": "year-end-lottery-backend",
   "version": "0.0.1",
   "description": "",
   "author": "",
@@ -17,7 +17,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
-    "prepare": "husky",
+    "prepare": "cd ../.. && husky apps/backend/.husky",
     "db:migrate": "kysely migrate:latest",
     "db:rollback": "kysely migrate:down",
     "db:status": "kysely migrate:list",

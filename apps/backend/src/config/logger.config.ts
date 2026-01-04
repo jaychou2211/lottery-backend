@@ -10,7 +10,7 @@ export const loggerConfig = registerAs('logger', () => ({
 		combinedPath: process.env.LOG_COMBINED_PATH,
 	},
 	autoLogging: process.env.LOG_AUTO_LOGGING !== 'false',
-	appName: process.env.APP_NAME || 'lottery-backend',
+	appName: process.env.APP_NAME || 'year-end-lottery-backend',
 	appVersion: process.env.APP_VERSION,
 }));
 
