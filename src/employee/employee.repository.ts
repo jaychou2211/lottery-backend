@@ -2,8 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { sql } from 'kysely';
 
 import { InjectKysely, type KyselyDatabase, type EmployeeRow, type NewEmployee } from '../database';
-import type { Employee } from '../domain/employee';
-import { EmployeeRole } from '../domain/shared';
 import type { EmployeeCsvRow } from './dto/sync-employee.dto';
 
 export interface SyncResult {
@@ -16,42 +14,12 @@ export interface SyncResult {
 export class EmployeeRepository {
 	constructor(@InjectKysely() private readonly db: KyselyDatabase) {}
 
-	async findAll(): Promise<Employee[]> {
-		const rows = await this.db
+	async findAll(): Promise<EmployeeRow[]> {
+		return this.db
 			.selectFrom('employee')
 			.selectAll()
 			.where('deleted_at', 'is', null)
 			.execute();
-		return rows.map(this.toDomain);
-	}
-
-	async findById(id: number): Promise<Employee | null> {
-		const row = await this.db
-			.selectFrom('employee')
-			.selectAll()
-			.where('id', '=', id)
-			.where('deleted_at', 'is', null)
-			.executeTakeFirst();
-		return row ? this.toDomain(row) : null;
-	}
-
-	async findByIds(ids: number[]): Promise<Employee[]> {
-		if (ids.length === 0) return [];
-		const rows = await this.db
-			.selectFrom('employee')
-			.selectAll()
-			.where('id', 'in', ids)
-			.where('deleted_at', 'is', null)
-			.execute();
-		return rows.map(this.toDomain);
-	}
-
-	/**
-	 * Find all active (non-deleted) employees.
-	 * Used when creating a new raffle.
-	 */
-	async findAllActive(): Promise<Employee[]> {
-		return this.findAll();
 	}
 
 	/**
@@ -142,15 +110,5 @@ export class EmployeeRepository {
 				deleted: toDelete.length,
 			};
 		});
-	}
-
-	private toDomain(row: EmployeeRow): Employee {
-		return {
-			id: row.id,
-			staffNumber: row.staff_number,
-			name: row.name,
-			department: row.department,
-			role: row.role as EmployeeRole,
-		};
 	}
 }

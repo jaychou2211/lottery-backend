@@ -1,10 +1,18 @@
 import { faker } from '@faker-js/faker';
 
-import type { Employee } from '../employee';
 import { Raffle, Prize, EligibilityPool } from '../raffle';
 import type { LotteryStrategy, WinnerInput, PersistedPrize, PersistedBonusPrize, ParticipantEligibility } from '../raffle';
 import { RegularEligibleCounts, BonusEligibleCounts, RaffleStatus, EmployeeRole, DrawnGroup, PrizeRank } from '../shared';
 import type { EligibleCounts } from '../shared';
+
+/** Test-only Employee interface for domain layer tests */
+interface Employee {
+	readonly id: number;
+	readonly staffNumber: string;
+	readonly name: string;
+	readonly department: string;
+	readonly role: EmployeeRole;
+}
 
 /**
  * Factory for creating test Employee objects.

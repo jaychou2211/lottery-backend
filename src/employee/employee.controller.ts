@@ -2,8 +2,6 @@ import {
 	BadRequestException,
 	Controller,
 	Get,
-	Param,
-	ParseIntPipe,
 	Put,
 	UploadedFile,
 	UseInterceptors,
@@ -12,14 +10,15 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import {
 	ApiBody,
 	ApiConsumes,
-	ApiNotFoundResponse,
 	ApiOperation,
 	ApiResponse,
 	ApiTags,
 } from '@nestjs/swagger';
 import { parseEmployeeCsv } from './csv-parser';
 import { EmployeeResponseDto, SyncResultDto } from './dto';
-import { EmployeeService } from './employee.service';
+import { EmployeeRepository } from './employee.repository';
+import type { EmployeeRow } from '../database';
+import { EmployeeRole } from '../domain/shared';
 
 interface UploadedFile {
 	buffer: Buffer;
@@ -31,7 +30,7 @@ interface UploadedFile {
 @ApiTags('Employees')
 @Controller('employees')
 export class EmployeeController {
-	constructor(private readonly service: EmployeeService) {}
+	constructor(private readonly repository: EmployeeRepository) {}
 
 	@Put()
 	@UseInterceptors(FileInterceptor('file'))
@@ -78,21 +77,26 @@ A002,李小華,行銷部,JUNIOR
 		}
 
 		const rows = parseEmployeeCsv(file.buffer);
-		return this.service.sync(rows);
+		const result = await this.repository.sync(rows);
+		const currentEmployees = await this.repository.findAll();
+		return { ...result, total: currentEmployees.length };
 	}
 
 	@Get()
 	@ApiOperation({ summary: 'List all employees' })
 	@ApiResponse({ status: 200, type: [EmployeeResponseDto] })
 	async findAll(): Promise<EmployeeResponseDto[]> {
-		return this.service.findAll();
+		const employees = await this.repository.findAll();
+		return employees.map((e) => this.toResponse(e));
 	}
 
-	@Get(':id')
-	@ApiOperation({ summary: 'Get an employee by ID' })
-	@ApiResponse({ status: 200, type: EmployeeResponseDto })
-	@ApiNotFoundResponse({ description: 'Employee not found' })
-	async findById(@Param('id', ParseIntPipe) id: number): Promise<EmployeeResponseDto> {
-		return this.service.findById(id);
+	private toResponse(row: EmployeeRow): EmployeeResponseDto {
+		return {
+			id: row.id,
+			staffNumber: row.staff_number,
+			name: row.name,
+			department: row.department,
+			role: row.role as EmployeeRole,
+		};
 	}
 }
