@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import home from '../assets/home.jpg';
+// import giftFallback from '../assets/giftFallback.png';
 import { getApiDrawResults } from '../apis/getApiDrawResults';
 import { getApiDrawResultByStaffId } from '../apis/getApiDrawResultByStaffId';
 import { useRaffleContext } from '../contexts/RaffleContext';
@@ -104,7 +105,7 @@ export const DrawResults = () => {
                 <span className="text-yellow-500">得獎：</span>{staffDrawResult.wonPrizes[0].prizeName}
               </p>
               <p className="text-sm text-gray-400 mb-2">
-                獎項等級: {staffDrawResult.wonPrizes[0].rank} ({staffDrawResult.wonPrizes[0].prizeLevel})
+                獎項等級: {staffDrawResult.wonPrizes[0].prizeLevel}
               </p>
               <p className="text-xs text-gray-500">
                 抽獎時間: {new Date(staffDrawResult.wonPrizes[0].drawnAt).toLocaleString('zh-TW')}
@@ -135,7 +136,7 @@ export const DrawResults = () => {
               {/* 獎項標題 */}
               <div className="mb-4">
                 <h3 className="text-yellow-500 text-xl font-bold mb-2">{result.prize.name}</h3>
-                <p className="text-gray-400 text-sm">獎項等級: {result.prize.rank} ({result.prize.prizeLevel})</p>
+                <p className="text-gray-400 text-sm">獎項等級: {result.prize.prizeLevel}</p>
               </div>
 
               {/* 獎項圖片 */}
@@ -143,6 +144,9 @@ export const DrawResults = () => {
                 src={result.prize.imageUrl}
                 alt={result.prize.name}
                 className="w-full h-48 object-contain rounded-lg mb-4"
+                onError={(e) => {
+                  e.currentTarget.src = home;
+                }}
               />
 
               {/* 得獎者列表 */}
