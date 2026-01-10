@@ -13,6 +13,8 @@ export const DrawResults = () => {
   const [staffDrawResult, setStaffDrawResult] = useState<any>(null);
 
   useEffect(() => {
+    if (raffleId === null) return;
+
     const fetchDrawResults = async () => {
       try {
         const data = await getApiDrawResults(raffleId);
@@ -38,6 +40,8 @@ export const DrawResults = () => {
       alert('請輸入員工編號');
       return;
     }
+
+    if (raffleId === null) return;
 
     try {
       const data = await getApiDrawResultByStaffId(raffleId, inputValue);
@@ -65,11 +69,11 @@ export const DrawResults = () => {
       <div className="absolute inset-0 bg-black bg-opacity-85"></div>
 
       {/* 搜尋欄 */}
-      <div className="absolute top-8 left-1/2 transform -translate-x-1/2 z-10">
-        <form onSubmit={handleSubmit}>
+      <div className="absolute top-8 left-1/2 transform -translate-x-1/2 z-10 w-[95%] md:w-auto">
+        <form onSubmit={handleSubmit} className="px-6">
           <input
             type="text"
-            className='text-lg p-3 rounded-xl text-center bg-gray-900 text-white border-2 border-yellow-500 w-[20rem] focus:outline-none focus:border-yellow-400'
+            className='text-lg p-3 rounded-xl text-center bg-gray-900 text-white border-2 border-yellow-500 w-full md:w-[20rem] focus:outline-none focus:border-yellow-400'
             placeholder='請輸入員工編號查詢'
             value={inputValue}
             onChange={handleInputChange}
@@ -79,8 +83,9 @@ export const DrawResults = () => {
 
       {/* 查詢結果顯示 */}
       {staffDrawResult && (
-        <div className="absolute top-24 left-1/2 transform -translate-x-1/2 z-10 bg-gray-900 border-2 border-yellow-500 rounded-xl p-6 max-w-2xl">
-          <div className="flex items-center justify-between mb-4">
+        <div className="absolute top-24 left-1/2 transform -translate-x-1/2 z-10 w-[95%] md:w-auto">
+          <div className="bg-gray-900 border-2 border-yellow-500 rounded-xl p-6 mx-6 md:min-w-[20rem]">
+            <div className="flex items-center justify-between mb-4">
             <h3 className="text-yellow-500 text-xl font-bold">查詢結果</h3>
             <button
               onClick={() => setStaffDrawResult(null)}
@@ -122,16 +127,17 @@ export const DrawResults = () => {
               <p className="text-lg mb-2">
                 <span className="text-yellow-500">部門：</span>{staffDrawResult.participant.department}
               </p>
-              <p className="text-white text-lg mt-4">未中獎，一起期待明年吧！</p>
+              <p className="text-white text-lg mt-4">未中獎,一起期待明年吧！</p>
             </div>
           )}
+          </div>
         </div>
       )}
 
       {/* 得獎者列表 */}
       <div className="absolute top-32 left-1/2 transform -translate-x-1/2 w-[95%] h-[calc(100%-10rem)] overflow-y-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
-          {drawResults && Object.entries(drawResults.drawResults || {}).map(([rank, result]: [string, any]) => (
+          {drawResults && Object.entries(drawResults.drawResults || {}).reverse().map(([rank, result]: [string, any]) => (
             <div key={rank} className="bg-gray-900 bg-opacity-90 border-2 border-yellow-500 rounded-xl p-6">
               {/* 獎項標題 */}
               <div className="mb-4">

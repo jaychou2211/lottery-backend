@@ -43,6 +43,7 @@ export const Lottery = () => {
   const navigate = useNavigate();
 
   const fetchPrizes = useCallback(async () => {
+    if (raffleId === null) return;
 
     try {
       const prize = await getApiPrize(raffleId);
@@ -81,7 +82,8 @@ export const Lottery = () => {
   };
 
   const fetchWinners = async () => {
-    if (!rank) return;
+    if (!rank || raffleId === null) return;
+
     try {
       const response = await getApiCurrentPrizeWinners(raffleId, rank);
       console.log(response);
@@ -104,7 +106,7 @@ export const Lottery = () => {
   }
 
   useEffect(() => {
-    if (raffleId) {
+    if (raffleId !== null) {
       fetchPrizes();
     }
   }, [raffleId, fetchPrizes]);

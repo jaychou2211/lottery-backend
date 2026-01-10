@@ -2,13 +2,13 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { getApiRaffleId } from '../apis/getApiRaffleId';
 
 interface RaffleContextType {
-  raffleId: number;
+  raffleId: number | null;
 }
 
 const RaffleContext = createContext<RaffleContextType | undefined>(undefined);
 
 export const RaffleProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [raffleId, setRaffleId] = useState<number>(1);
+  const [raffleId, setRaffleId] = useState<number | null>(null);
 
   useEffect(() => {
     const loadRaffleId = async () => {
