@@ -74,11 +74,12 @@ export const DrawResults = () => {
           <input
             type="text"
             className='text-lg p-3 rounded-xl text-center bg-gray-900 text-white border-2 border-yellow-500 w-full md:w-[20rem] focus:outline-none focus:border-yellow-400'
-            placeholder='請輸入員工編號查詢'
+            placeholder='輸入員工編號，快速查中獎'
             value={inputValue}
             onChange={handleInputChange}
           />
         </form>
+        <p className="text-gray-400 text-sm text-center mt-2">(Nhập mã nhân viên để tra cứu trúng thưởng nhanh chóng)</p>
       </div>
 
       {/* 查詢結果顯示 */}
@@ -135,7 +136,7 @@ export const DrawResults = () => {
       )}
 
       {/* 得獎者列表 */}
-      <div className="absolute top-32 left-1/2 transform -translate-x-1/2 w-[95%] h-[calc(100%-10rem)] overflow-y-auto">
+      <div className="absolute top-36 left-1/2 transform -translate-x-1/2 w-[95%] h-[calc(100%-11rem)] overflow-y-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
           {drawResults && Object.entries(drawResults.drawResults || {}).reverse().map(([rank, result]: [string, any]) => (
             <div key={rank} className="bg-gray-900 bg-opacity-90 border-2 border-yellow-500 rounded-xl p-6">
