@@ -12,11 +12,12 @@ interface Winner {
 }
 
 interface WinnerListProps {
+  prizeName?: string;
   winners: Winner[];
   onClose: () => void;
 }
 
-export const WinnerList = ({ winners, onClose }: WinnerListProps) => {
+export const WinnerList = ({ prizeName, winners, onClose }: WinnerListProps) => {
   return (
     <main className="h-screen bg-gray-950 flex flex-col overflow-hidden">
       <div className="relative flex items-center justify-center px-2 py-4 flex-shrink-0">
@@ -26,9 +27,9 @@ export const WinnerList = ({ winners, onClose }: WinnerListProps) => {
         >
           <FaAngleLeft />
         </button>
-        <h2 className="text-2xl font-bold text-white text-center">⭐ 得獎者名單 ⭐</h2>
+        <h2 className="text-2xl font-bold text-white text-center">⭐ {prizeName} - 得獎者名單 ⭐</h2>
       </div>
-      <div className="flex-1 overflow-x-auto overflow-y-hidden px-2 pb-4 h-full">
+      <div className="overflow-x-auto overflow-y-hidden px-2 pb-4 h-2/3">
         <div className="flex flex-col flex-wrap gap-2 h-full content-start pt-2">
           {winners.map((winner, index) => {
             return (
@@ -40,7 +41,7 @@ export const WinnerList = ({ winners, onClose }: WinnerListProps) => {
                 enterFrom="opacity-0"
                 enterTo="opacity-100"
               >
-                <div className="flex-shrink-0 w-[20rem] h-[11.5%] p-2 bg-white text-black rounded-md">
+                <div className="flex-shrink-0 w-[20rem] h-[15%] p-2 bg-white text-black rounded-md">
                   <div className="flex justify-between items-center h-full">
                     <div className="flex items-center gap-2">
                       <span className="text-xl font-bold">{index + 1}</span>

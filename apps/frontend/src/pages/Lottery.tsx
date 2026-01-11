@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { WinnerList } from '../components/WinnerList';
 // static resources
 import background from '../assets/background.png';
+import home from '../assets/home.jpg';
 import { FaAngleRight } from "react-icons/fa";
 import { getApiPrize } from "../apis/getApiPrize";
 import { getApiCurrentPrizeWinners } from "../apis/getApiCurrentPrizeWinners";
@@ -42,6 +43,7 @@ export const Lottery = () => {
   const navigate = useNavigate();
 
   const fetchPrizes = useCallback(async () => {
+    if (raffleId === null) return;
 
     try {
       const prize = await getApiPrize(raffleId);
@@ -80,7 +82,8 @@ export const Lottery = () => {
   };
 
   const fetchWinners = async () => {
-    if (!rank) return;
+    if (!rank || raffleId === null) return;
+
     try {
       const response = await getApiCurrentPrizeWinners(raffleId, rank);
       console.log(response);
@@ -103,7 +106,7 @@ export const Lottery = () => {
   }
 
   useEffect(() => {
-    if (raffleId) {
+    if (raffleId !== null) {
       fetchPrizes();
     }
   }, [raffleId, fetchPrizes]);
@@ -130,7 +133,9 @@ export const Lottery = () => {
 
         {/* prize */}
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-          <img src={currentPrize?.imageUrl} alt="prize" className="max-w-[62.5rem] max-h-[70vh] object-contain" />
+          <img src={currentPrize?.imageUrl} alt="prize" className="max-w-[62.5rem] max-h-[70vh] object-contain" onError={(e) => {
+            e.currentTarget.src = home;
+          }} />
         </div>
 
         {/* draw btn */}
@@ -141,7 +146,7 @@ export const Lottery = () => {
         {/* show winner list */}
         {showWinnerList && (
           <div className="fixed top-0 right-0 h-screen w-screen z-50">
-            <WinnerList winners={winners} onClose={() => setShowWinnerList(false)} />
+            <WinnerList prizeName={currentPrize?.name} winners={winners} onClose={() => setShowWinnerList(false)} />
           </div>
         )}
 

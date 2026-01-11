@@ -50,6 +50,8 @@ export const Bonus = () => {
   }
 
   const fetchPrizes = async () => {
+    if (raffleId === null) return null;
+
     try {
       const prize = await getApiPrize(raffleId);
       console.log(prize);
@@ -65,7 +67,8 @@ export const Bonus = () => {
   };
 
   const fetchWinners = async (rankToUse: string) => {
-    if (!rankToUse) return;
+    if (!rankToUse || raffleId === null) return;
+
     try {
       const response = await getApiCurrentPrizeWinners(raffleId, rankToUse);
       console.log(response);
@@ -83,6 +86,8 @@ export const Bonus = () => {
   };
 
   const fetchRemainingCount = useCallback(async () => {
+    if (raffleId === null) return;
+
     try {
       const response = await getApiRemainingCount(raffleId);
       console.log('Remaining count:', response);
@@ -93,6 +98,8 @@ export const Bonus = () => {
   }, [raffleId]);
 
   const handleDraw = async () => {
+    if (raffleId === null) return;
+
     try {
       // 1. 建立加碼獎項
       await postApiCreateBonusPrize(raffleId, {
@@ -122,7 +129,7 @@ export const Bonus = () => {
   };
 
   useEffect(() => {
-    if (raffleId) {
+    if (raffleId !== null) {
       fetchRemainingCount();
     }
   }, [raffleId, fetchRemainingCount]);
