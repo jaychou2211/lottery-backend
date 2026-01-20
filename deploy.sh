@@ -1,149 +1,96 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="$SCRIPT_DIR/apps/backend/.env"
 
-show_help() {
-  echo "Usage: $0 --env=<env> --service=<services> <command> [options]"
-  echo ""
-  echo "Options:"
-  echo "  --env=<env>         Environment: dev or prod"
-  echo "  --service=<list>    Services (comma-separated): api, nginx, data"
-  echo ""
-  echo "Services:"
-  echo "  api   - Backend (NestJS)"
-  echo "  nginx - Frontend (Nginx + static files)"
-  echo "  data  - PostgreSQL"
-  echo ""
-  echo "Examples:"
-  echo "  $0 --env=dev --service=api,data up -d"
-  echo "  $0 --env=dev --service=api,data down"
-  echo "  $0 --env=dev --service=api,data logs -f"
-  echo "  $0 --env=prod --service=api,nginx up -d --build"
-  echo "  $0 --env=prod --service=api,nginx,data up -d"
-  echo ""
-  echo "Note: When 'up' command is used with both 'api' and 'data' services,"
-  echo "      database migrations will be automatically executed."
-}
-
-ENV=""
-SERVICES=""
-DOCKER_ARGS=()
-HAS_API=false
-HAS_DATA=false
-
-# Parse arguments
-while [[ $# -gt 0 ]]; do
-  case $1 in
-    --env=*)
-      ENV="${1#*=}"
-      shift
-      ;;
-    --service=*)
-      SERVICES="${1#*=}"
-      shift
-      ;;
-    --help|-h)
-      show_help
-      exit 0
-      ;;
-    *)
-      DOCKER_ARGS+=("$1")
-      shift
-      ;;
+# Parse flags
+BACKEND_ONLY=false
+for arg in "$@"; do
+  case $arg in
+    --backend-only) BACKEND_ONLY=true ;;
   esac
 done
 
-# Validate environment
-if [[ -z "$ENV" ]]; then
-  echo "Error: --env is required"
-  echo ""
-  show_help
-  exit 1
-fi
+set +u
+source "$ENV_FILE"
+set -u
 
-if [[ "$ENV" != "dev" && "$ENV" != "prod" ]]; then
-  echo "Error: --env must be 'dev' or 'prod'"
-  exit 1
-fi
+[[ -z "${DOCKER_ENV:-}" ]] && echo "Missing: DOCKER_ENV" && exit 1
+[[ -z "${DOCKER_SERVICES:-}" ]] && echo "Missing: DOCKER_SERVICES" && exit 1
+[[ "$BACKEND_ONLY" == false && -z "${LOTTERY_FORWARD_API_PORT:-}" ]] && echo "Missing: LOTTERY_FORWARD_API_PORT" && exit 1
 
-# Validate services
-if [[ -z "$SERVICES" ]]; then
-  echo "Error: --service is required"
-  echo ""
-  show_help
-  exit 1
-fi
+# Backend
+COMPOSE_FILES=""
+HAS_DATA=false
 
-# Start with base compose file (network)
-COMPOSE_FILES="-f $SCRIPT_DIR/docker-compose.yml"
-
-# Parse services
-IFS=',' read -ra SERVICE_ARRAY <<< "$SERVICES"
-
-for SERVICE in "${SERVICE_ARRAY[@]}"; do
+IFS=',' read -ra SERVICES <<< "$DOCKER_SERVICES"
+for SERVICE in "${SERVICES[@]}"; do
   case $SERVICE in
     api)
-      HAS_API=true
       COMPOSE_FILES="$COMPOSE_FILES -f $SCRIPT_DIR/apps/backend/docker/docker-compose.yml"
-      if [[ "$ENV" == "dev" ]]; then
-        COMPOSE_FILES="$COMPOSE_FILES -f $SCRIPT_DIR/apps/backend/docker/docker-compose.dev.yml"
-      fi
-      ;;
-    nginx)
-      COMPOSE_FILES="$COMPOSE_FILES -f $SCRIPT_DIR/apps/frontend/docker/docker-compose.yml"
+      [[ "$DOCKER_ENV" == "dev" ]] && COMPOSE_FILES="$COMPOSE_FILES -f $SCRIPT_DIR/apps/backend/docker/docker-compose.dev.yml"
       ;;
     data)
       HAS_DATA=true
       COMPOSE_FILES="$COMPOSE_FILES -f $SCRIPT_DIR/apps/backend/docker/docker-compose.data.yml"
       ;;
-    *)
-      echo "Error: Unknown service '$SERVICE'"
-      echo "Valid services: api, nginx, data"
-      exit 1
-      ;;
   esac
 done
 
-# Environment file for variable substitution in compose files
-ENV_FILE="$SCRIPT_DIR/apps/backend/.env"
+docker compose --env-file "$ENV_FILE" --project-directory "$SCRIPT_DIR" $COMPOSE_FILES up -d --build
 
-# Execute docker compose with explicit project directory and env file
-echo "Running: docker compose --env-file $ENV_FILE --project-directory $SCRIPT_DIR $COMPOSE_FILES ${DOCKER_ARGS[*]}"
-docker compose --env-file "$ENV_FILE" --project-directory "$SCRIPT_DIR" $COMPOSE_FILES "${DOCKER_ARGS[@]}"
-
-# Run migrations if 'up' command with api and data services (local dev only)
-if [[ "$HAS_API" == true && "$HAS_DATA" == true && "${DOCKER_ARGS[*]}" == *"up"* ]]; then
-  echo ""
-  echo "=========================================="
-  echo "Running database migrations (local)..."
-  echo "=========================================="
-
-  # Wait for postgres to be healthy
-  # shellcheck disable=SC1090
-  source "$ENV_FILE"
-  POSTGRES_CONTAINER="${COMPOSE_PROJECT_NAME:-lottery-backend-dev}_postgres"
-
-  echo "Waiting for postgres container to be healthy..."
+# Run migrations
+if [[ "$HAS_DATA" == true ]]; then
+  # Local postgres: wait for container to be healthy
+  echo "Waiting for postgres to be healthy..."
+  POSTGRES_CONTAINER="${COMPOSE_PROJECT_NAME:-lottery}_postgres"
 
   TIMEOUT=30
   ELAPSED=0
   while [[ $ELAPSED -lt $TIMEOUT ]]; do
     HEALTH=$(docker inspect --format='{{.State.Health.Status}}' "$POSTGRES_CONTAINER" 2>/dev/null || echo "not_found")
     if [[ "$HEALTH" == "healthy" ]]; then
-      echo "Postgres container is healthy."
       break
     fi
     sleep 2
     ELAPSED=$((ELAPSED + 2))
   done
 
-  # Execute migration from local machine (connects to container's PostgreSQL via forwarded port)
-  echo ""
-  cd "$SCRIPT_DIR/apps/backend" && pnpm db:migrate
-
-  echo ""
-  echo "=========================================="
-  echo "Migrations completed!"
-  echo "=========================================="
+  if [[ $ELAPSED -ge $TIMEOUT ]]; then
+    echo "Warning: Postgres did not become healthy within ${TIMEOUT}s"
+  fi
 fi
+
+echo "Running database migrations..."
+cd "$SCRIPT_DIR/apps/backend" && pnpm db:migrate
+
+[[ "$BACKEND_ONLY" == true ]] && exit 0
+
+# Frontend
+cd "$SCRIPT_DIR/apps/frontend" && pnpm build
+
+FRONTEND_ROOT="$SCRIPT_DIR/apps/frontend/dist"
+
+# Nginx: platform-specific paths
+if [[ "$(uname)" == "Darwin" ]]; then
+  NGINX_BASE="/opt/homebrew/etc/nginx"
+  [[ ! -d "$NGINX_BASE" ]] && NGINX_BASE="/usr/local/etc/nginx"
+  LOG_DIR="$NGINX_BASE/logs"
+  SUDO=""
+  RELOAD_CMD="nginx -s reload"
+else
+  NGINX_BASE="/etc/nginx"
+  LOG_DIR="/var/log/nginx"
+  SUDO="sudo"
+  RELOAD_CMD="sudo systemctl reload nginx"
+fi
+
+NGINX_CONF=$(sed -e "s|__FRONTEND_ROOT__|$FRONTEND_ROOT|g" \
+                 -e "s|__API_PORT__|$LOTTERY_FORWARD_API_PORT|g" \
+                 -e "s|__LOG_DIR__|$LOG_DIR|g" \
+                 "$SCRIPT_DIR/apps/frontend/nginx.conf")
+
+echo "$NGINX_CONF" | $SUDO tee "$NGINX_BASE/sites-available/year-end-party.conf" > /dev/null
+[[ ! -L "$NGINX_BASE/sites-enabled/year-end-party.conf" ]] && $SUDO ln -s "$NGINX_BASE/sites-available/year-end-party.conf" "$NGINX_BASE/sites-enabled/"
+$SUDO nginx -t && $RELOAD_CMD

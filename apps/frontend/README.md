@@ -1,64 +1,18 @@
 # Year-End Lottery Frontend
 
-React frontend for the year-end lottery application, built with Vite.
-
-## Tech Stack
-
-- React 18
-- TypeScript
-- Vite
-- Tailwind CSS
-- React Router
-
-## Available Scripts
-
-### `pnpm dev`
-
-Runs the app in development mode at [http://localhost:3000](http://localhost:3000).
-
-Features hot module replacement (HMR) for instant updates.
-
-### `pnpm build`
-
-Builds the app for production to the `dist` folder.
-
-### `pnpm preview`
-
-Locally preview the production build.
-
-## Environment Variables
-
-Copy `.env.example` to `.env` and configure:
+## Local Development
 
 ```bash
-VITE_API_URL=http://localhost:3004/api
+# 先啟動 backend（從專案根目錄執行）
+./deploy.sh --backend-only
+
+# 啟動 frontend dev server
+pnpm install
+pnpm dev        # http://localhost:3000
 ```
 
-## Docker
+API proxy 自動讀取 `apps/backend/.env` 的 `LOTTERY_FORWARD_API_PORT`。
 
-Build and run with Docker:
+## Production
 
-```bash
-# Build image
-docker build -t lottery-frontend -f docker/Dockerfile .
-
-# Run container
-docker run -p 8080:80 lottery-frontend
-```
-
-Or use the deploy script from the project root:
-
-```bash
-./deploy.sh --env=prod --service=nginx up -d --build
-```
-
-## Project Structure
-
-```
-src/
-├── apis/          # API client functions
-├── components/    # Reusable UI components
-├── contexts/      # React context providers
-├── pages/         # Page components
-└── index.tsx      # App entry point
-```
+由根目錄 `deploy.sh` 處理，參見 `/README.md`。

@@ -10,4 +10,10 @@ services:
     container_name: year-end-lottery-backend-dev
     volumes:
       - ./apps/backend:/home/node/apps
+      - lottery-node-modules:/home/node/apps/node_modules
+      - lottery-pnpm-store:/home/node/.pnpm-store
     command: ["tail", "-f", "/dev/null"]
+
+volumes:
+  lottery-node-modules:
+  lottery-pnpm-store:

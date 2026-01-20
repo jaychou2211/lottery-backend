@@ -3,6 +3,7 @@ FROM node:22-bookworm-slim
 RUN corepack enable && corepack prepare pnpm@10.24.0 --activate
 
 ENV PNPM_HOME=/usr/local/bin
+ENV npm_config_store_dir=/home/node/.pnpm-store
 
 RUN apt-get update \
     && apt-get -y --no-install-recommends install \

@@ -1,6 +1,0 @@
-# Base configuration - network definition only
-# Use compose.sh to combine with other docker-compose files
-
-networks:
-  year-end-lottery-network:
-    driver: bridge
