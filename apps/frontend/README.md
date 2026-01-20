@@ -1,46 +1,64 @@
-# Getting Started with Create React App
+# Year-End Lottery Frontend
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+React frontend for the year-end lottery application, built with Vite.
+
+## Tech Stack
+
+- React 18
+- TypeScript
+- Vite
+- Tailwind CSS
+- React Router
 
 ## Available Scripts
 
-In the project directory, you can run:
+### `pnpm dev`
 
-### `npm start`
+Runs the app in development mode at [http://localhost:3000](http://localhost:3000).
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+Features hot module replacement (HMR) for instant updates.
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+### `pnpm build`
 
-### `npm test`
+Builds the app for production to the `dist` folder.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### `pnpm preview`
 
-### `npm run build`
+Locally preview the production build.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Environment Variables
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+Copy `.env.example` to `.env` and configure:
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+```bash
+VITE_API_URL=http://localhost:3004/api
+```
 
-### `npm run eject`
+## Docker
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+Build and run with Docker:
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```bash
+# Build image
+docker build -t lottery-frontend -f docker/Dockerfile .
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+# Run container
+docker run -p 8080:80 lottery-frontend
+```
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+Or use the deploy script from the project root:
 
-## Learn More
+```bash
+./deploy.sh --env=prod --service=nginx up -d --build
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## Project Structure
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+```
+src/
+├── apis/          # API client functions
+├── components/    # Reusable UI components
+├── contexts/      # React context providers
+├── pages/         # Page components
+└── index.tsx      # App entry point
+```
