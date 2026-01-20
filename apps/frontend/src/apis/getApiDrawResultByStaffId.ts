@@ -1,6 +1,6 @@
 export const getApiDrawResultByStaffId = async (raffleId: number, staffNumber: string) => {
   try {
-    const response = await fetch(`${process.env.REACT_APP_API_URL}/raffles/${raffleId}/participants/${staffNumber}`, {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/raffles/${raffleId}/participants/${staffNumber}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",

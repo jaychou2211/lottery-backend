@@ -1,6 +1,6 @@
 export const getApiCurrentPrizeWinners = async (raffleId: number, rank: string) => {
   try {
-    const response = await fetch(`${process.env.REACT_APP_API_URL}/raffles/${raffleId}/draw?rank=${rank}`, {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/raffles/${raffleId}/draw?rank=${rank}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

@@ -1,5 +1,5 @@
 export const getApiRaffleId = async () => {
-  const response = await fetch(`${process.env.REACT_APP_API_URL}/raffles`);
+  const response = await fetch(`${import.meta.env.VITE_API_URL}/raffles`);
 
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);

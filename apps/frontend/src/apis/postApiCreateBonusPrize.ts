@@ -5,7 +5,7 @@ interface BonusPrizeRequest {
 
 export const postApiCreateBonusPrize = async (raffleId: number, bonusPrizeData: BonusPrizeRequest) => {
   try {
-    const response = await fetch(`${process.env.REACT_APP_API_URL}/raffles/${raffleId}/bonus-prizes`, {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/raffles/${raffleId}/bonus-prizes`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
