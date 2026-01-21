@@ -1,6 +1,7 @@
 import { Transition } from '@headlessui/react';
 // static resources
 import { FaAngleLeft } from "react-icons/fa";
+import background_dark from '../assets/background_dark.jpg'
 
 interface Winner {
   participantId: number;
@@ -20,6 +21,7 @@ interface WinnerListProps {
 export const WinnerList = ({ prizeName, winners, onClose }: WinnerListProps) => {
   return (
     <main className="h-screen bg-gray-950 flex flex-col overflow-hidden">
+      <img src={background_dark} alt="home-img" className="w-full min-h-screen object-cover" />
       <div className="relative flex items-center justify-center px-2 py-4 flex-shrink-0">
         <button
           className="absolute left-0 top-0 text-2xl text-white flex items-center hover:text-gray-300 p-2"

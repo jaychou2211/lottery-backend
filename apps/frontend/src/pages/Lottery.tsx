@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { WinnerList } from '../components/WinnerList';
 // static resources
 import background from '../assets/background.png';
-import home from '../assets/home.jpg';
+import gift_test from '../assets/gift_test.png';
+import background_light from '../assets/background_light.jpg'
 import { FaAngleRight } from "react-icons/fa";
 import { getApiPrize } from "../apis/getApiPrize";
 import { getApiCurrentPrizeWinners } from "../apis/getApiCurrentPrizeWinners";
@@ -112,18 +113,14 @@ export const Lottery = () => {
   }, [raffleId, fetchPrizes]);
 
   return (
-    <main className="min-h-screen bg-primaryOrange">
+    <main className="min-h-screen">
+      <img src={background_light} alt="home-img" className="w-full min-h-screen object-cover" />
       <div className="w-full h-full text-center mx-auto">
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 top-6 w-[44rem] mx-auto bg-gray-950 rounded-xl border-8 border-[#F18E22]">
           {/* 當前獎品 */}
           <h2 className="text-4xl text-center py-8 px-2 text-white font-bold rounded-xl">
             {currentPrize?.prizeLevel} - {currentPrize?.name}
           </h2>
-        </div>
-
-        {/* banner */}
-        <div className="w-full mx-auto px-6 pt-28">
-          <img src={background} alt="banner" />
         </div>
 
         {/* next btn */}
@@ -134,7 +131,7 @@ export const Lottery = () => {
         {/* prize */}
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
           <img src={currentPrize?.imageUrl} alt="prize" className="max-w-[62.5rem] max-h-[70vh] object-contain" onError={(e) => {
-            e.currentTarget.src = home;
+            e.currentTarget.src = gift_test;
           }} />
         </div>
 

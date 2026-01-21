@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import home from '../assets/home.jpg';
+import main_visual2 from '../assets/main_visual2.jpg';
+import gift_test from '../assets/gift_test.png'
 // import giftFallback from '../assets/giftFallback.png';
 import { getApiDrawResults } from '../apis/getApiDrawResults';
 import { getApiDrawResultByStaffId } from '../apis/getApiDrawResultByStaffId';
@@ -56,7 +57,7 @@ export const DrawResults = () => {
   if (loading) {
     return (
       <main className="w-screen h-screen overflow-hidden relative flex items-center justify-center">
-        <img src={home} alt="home-img" className="w-full h-full object-cover" />
+        <img src={main_visual2} alt="home-img" className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-black bg-opacity-85"></div>
         <div className="absolute text-white text-2xl">載入中...</div>
       </main>
@@ -65,7 +66,7 @@ export const DrawResults = () => {
 
   return (
     <main className="w-screen h-screen overflow-hidden relative">
-      <img src={home} alt="home-img" className="w-full h-full object-cover" />
+      <img src={main_visual2} alt="home-img" className="w-full h-full object-cover" />
       <div className="absolute inset-0 bg-black bg-opacity-85"></div>
 
       {/* 搜尋欄 */}
@@ -152,7 +153,7 @@ export const DrawResults = () => {
                 alt={result.prize.name}
                 className="w-full h-48 object-contain rounded-lg mb-4"
                 onError={(e) => {
-                  e.currentTarget.src = home;
+                  e.currentTarget.src = gift_test;
                 }}
               />
 
